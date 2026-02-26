@@ -1,48 +1,51 @@
-import sqlite3
 import os
-import bcrypt as _bcrypt
+from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime, func
+from sqlalchemy.orm import sessionmaker, declarative_base
 
-DB_PATH = os.environ.get("DATABASE_PATH", "underwriting.db")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./underwriting.db")
+
+engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    full_name = Column(String(150), nullable=False)
+    password_hash = Column(String(255), nullable=False)
+    role = Column(String(20), nullable=False)  # admin | inspector
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+    db = SessionLocal()
     try:
-        yield conn
+        yield db
     finally:
-        conn.close()
+        db.close()
 
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
+    from app.auth import hash_password
 
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password_hash TEXT NOT NULL,
-            full_name TEXT NOT NULL DEFAULT '',
-            role TEXT NOT NULL CHECK(role IN ('admin', 'inspector')),
-            is_active INTEGER NOT NULL DEFAULT 1,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
-    """)
+    Base.metadata.create_all(bind=engine)
 
-    existing = conn.execute(
-        "SELECT id FROM users WHERE username = ?", ("admin",)
-    ).fetchone()
-
-    if not existing:
-        pw_hash = _bcrypt.hashpw("admin123".encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
-        conn.execute(
-            "INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)",
-            ("admin", pw_hash, "Администратор", "admin"),
-        )
-        conn.commit()
-
-    conn.close()
+    db = SessionLocal()
+    try:
+        existing = db.query(User).filter(User.username == "admin").first()
+        if not existing:
+            admin = User(
+                username="admin",
+                full_name="Администратор",
+                password_hash=hash_password("admin123"),
+                role="admin",
+                is_active=True,
+            )
+            db.add(admin)
+            db.commit()
+    finally:
+        db.close()

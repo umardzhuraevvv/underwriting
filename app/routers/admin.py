@@ -1,123 +1,112 @@
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, field_validator
-from app.database import get_db
-from app.auth import require_admin, hash_password, get_current_user
+from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
+from typing import Optional
+
+from app.database import get_db, User
+from app.auth import require_admin, hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 class CreateUserRequest(BaseModel):
-    username: str
-    password: str
-    full_name: str
-    role: str
-
-    @field_validator("role")
-    @classmethod
-    def validate_role(cls, v):
-        if v not in ("admin", "inspector"):
-            raise ValueError("Роль должна быть admin или inspector")
-        return v
-
-    @field_validator("username")
-    @classmethod
-    def validate_username(cls, v):
-        if len(v) < 3:
-            raise ValueError("Логин должен быть не менее 3 символов")
-        return v
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v):
-        if len(v) < 6:
-            raise ValueError("Пароль должен быть не менее 6 символов")
-        return v
+    username: str = Field(min_length=3, max_length=50)
+    full_name: str = Field(min_length=2, max_length=150)
+    password: str = Field(min_length=6)
+    role: str = Field(pattern="^(admin|inspector)$")
 
 
 class UpdateUserRequest(BaseModel):
-    full_name: str | None = None
-    role: str | None = None
-    is_active: bool | None = None
-    password: str | None = None
-
-    @field_validator("role")
-    @classmethod
-    def validate_role(cls, v):
-        if v is not None and v not in ("admin", "inspector"):
-            raise ValueError("Роль должна быть admin или inspector")
-        return v
+    full_name: Optional[str] = None
+    role: Optional[str] = Field(None, pattern="^(admin|inspector)$")
+    password: Optional[str] = Field(None, min_length=6)
+    is_active: Optional[bool] = None
 
 
-@router.get("/users")
-def list_users(current_user: dict = Depends(require_admin), db=Depends(get_db)):
-    rows = db.execute(
-        "SELECT id, username, full_name, role, is_active, created_at FROM users ORDER BY id"
-    ).fetchall()
-    return [dict(r) for r in rows]
+class UserOut(BaseModel):
+    id: int
+    username: str
+    full_name: str
+    role: str
+    is_active: bool
+    created_at: Optional[str] = None
 
 
-@router.post("/users")
+@router.get("/users", response_model=list[UserOut])
+def list_users(db: Session = Depends(get_db), admin: User = Depends(require_admin)):
+    users = db.query(User).order_by(User.id).all()
+    return [
+        UserOut(
+            id=u.id,
+            username=u.username,
+            full_name=u.full_name,
+            role=u.role,
+            is_active=u.is_active,
+            created_at=u.created_at.isoformat() if u.created_at else None,
+        )
+        for u in users
+    ]
+
+
+@router.post("/users", response_model=UserOut)
 def create_user(
-    data: CreateUserRequest,
-    current_user: dict = Depends(require_admin),
-    db=Depends(get_db),
+    body: CreateUserRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
 ):
-    existing = db.execute(
-        "SELECT id FROM users WHERE username = ?", (data.username,)
-    ).fetchone()
+    existing = db.query(User).filter(User.username == body.username).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Пользователь с таким логином уже существует")
+        raise HTTPException(status_code=400, detail="Логин уже занят")
 
-    pw_hash = hash_password(data.password)
-    cursor = db.execute(
-        "INSERT INTO users (username, password_hash, full_name, role) VALUES (?, ?, ?, ?)",
-        (data.username, pw_hash, data.full_name, data.role),
+    user = User(
+        username=body.username,
+        full_name=body.full_name,
+        password_hash=hash_password(body.password),
+        role=body.role,
+        is_active=True,
     )
+    db.add(user)
     db.commit()
-    new_id = cursor.lastrowid
+    db.refresh(user)
 
-    user = db.execute(
-        "SELECT id, username, full_name, role, is_active, created_at FROM users WHERE id = ?",
-        (new_id,),
-    ).fetchone()
-    return dict(user)
+    return UserOut(
+        id=user.id,
+        username=user.username,
+        full_name=user.full_name,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at.isoformat() if user.created_at else None,
+    )
 
 
-@router.put("/users/{user_id}")
+@router.patch("/users/{user_id}", response_model=UserOut)
 def update_user(
     user_id: int,
-    data: UpdateUserRequest,
-    current_user: dict = Depends(require_admin),
-    db=Depends(get_db),
+    body: UpdateUserRequest,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
 ):
-    user = db.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
 
-    if data.full_name is not None:
-        db.execute("UPDATE users SET full_name = ? WHERE id = ?", (data.full_name, user_id))
-    if data.role is not None:
-        db.execute("UPDATE users SET role = ? WHERE id = ?", (data.role, user_id))
-    if data.is_active is not None:
-        db.execute("UPDATE users SET is_active = ? WHERE id = ?", (int(data.is_active), user_id))
-    if data.password is not None and len(data.password) >= 6:
-        pw_hash = hash_password(data.password)
-        db.execute("UPDATE users SET password_hash = ? WHERE id = ?", (pw_hash, user_id))
+    if body.full_name is not None:
+        user.full_name = body.full_name
+    if body.role is not None:
+        user.role = body.role
+    if body.password is not None:
+        user.password_hash = hash_password(body.password)
+    if body.is_active is not None:
+        user.is_active = body.is_active
 
     db.commit()
+    db.refresh(user)
 
-    updated = db.execute(
-        "SELECT id, username, full_name, role, is_active, created_at FROM users WHERE id = ?",
-        (user_id,),
-    ).fetchone()
-    return dict(updated)
-
-
-@router.get("/stats")
-def get_stats(current_user: dict = Depends(get_current_user), db=Depends(get_db)):
-    return {
-        "total_ankety": 0,
-        "approved": 0,
-        "pending": 0,
-        "rejected": 0,
-    }
+    return UserOut(
+        id=user.id,
+        username=user.username,
+        full_name=user.full_name,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at.isoformat() if user.created_at else None,
+    )

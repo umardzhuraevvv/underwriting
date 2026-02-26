@@ -1,16 +1,15 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Fintech Drive — Андеррайтинг</title>
-<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fintech Drive — Андеррайтинг</title>
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
 
 <!-- SIDEBAR -->
-<aside class="sidebar">
+<aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
     <div class="logo-badge">
       <div class="logo-icon">FD</div>
@@ -23,43 +22,48 @@
 
   <nav class="sidebar-nav">
     <div class="nav-section">Основное</div>
-    <a class="nav-item" href="#" data-page="dashboard" onclick="showPage('dashboard')">
+    <a class="nav-item" data-page="dashboard" onclick="navigate('dashboard')">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
       Дашборд
     </a>
-    <a class="nav-item" href="#" data-page="ankety" onclick="showPage('ankety')">
+    <a class="nav-item" data-page="ankety" onclick="navigate('ankety')">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
       Анкеты
-      <span class="nav-badge" id="ankety-count">0</span>
+      <span class="nav-badge" id="anketyBadge">0</span>
     </a>
-    <a class="nav-item" href="#" data-page="new-anketa" onclick="showPage('new-anketa')">
+    <a class="nav-item" data-page="new-anketa" onclick="navigate('new-anketa')">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       Новая анкета
     </a>
-    <a class="nav-item" href="#" data-page="approvals" onclick="showPage('approvals')">
+    <a class="nav-item" data-page="approvals" onclick="navigate('approvals')">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       Запросы правок
     </a>
+
     <div class="nav-section" style="margin-top:8px">Инструменты</div>
-    <a class="nav-item" href="#" data-page="calculator" onclick="showPage('calculator')">
+    <a class="nav-item" data-page="calculator" onclick="navigate('calculator')">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
       Калькулятор
     </a>
-    <div class="nav-section admin-only" style="margin-top:8px">Система</div>
-    <a class="nav-item admin-only" href="#" data-page="users" onclick="showPage('users')">
+
+    <div class="nav-section" style="margin-top:8px" id="adminSection">Система</div>
+    <a class="nav-item" data-page="users" onclick="navigate('users')" id="usersNavItem">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Пользователи
     </a>
   </nav>
 
   <div class="sidebar-user">
-    <div class="user-avatar" id="user-avatar">АД</div>
+    <div class="user-avatar" id="userAvatar">АД</div>
     <div class="user-info">
-      <div class="user-name" id="user-fullname">—</div>
-      <div class="user-role" id="user-role-label">—</div>
+      <div class="user-name" id="userName">—</div>
+      <div class="user-role" id="userRole">—</div>
     </div>
-    <button class="logout-btn" onclick="logout()" title="Выйти">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+  </div>
+  <div class="sidebar-logout">
+    <button class="logout-btn" onclick="logout()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Выйти
     </button>
   </div>
 </aside>
@@ -67,42 +71,42 @@
 <!-- MAIN CONTENT -->
 <main class="main">
 
-  <!-- ===== DASHBOARD ===== -->
-  <div id="page-dashboard" class="page" style="display:none">
+  <!-- DASHBOARD PAGE -->
+  <div class="page" id="page-dashboard">
     <div class="topbar">
       <div class="page-title">Дашборд</div>
       <div class="topbar-actions">
-        <button class="btn btn-primary" onclick="showPage('new-anketa')">+ Новая анкета</button>
+        <button class="btn btn-primary" onclick="navigate('new-anketa')">+ Новая анкета</button>
       </div>
     </div>
     <div class="content">
       <div class="stats-row">
         <div class="stat-card">
           <div class="stat-label">Всего анкет</div>
-          <div class="stat-value" id="stat-total">0</div>
-          <div class="stat-sub">За всё время</div>
+          <div class="stat-value">0</div>
+          <div class="stat-sub">В системе</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Одобрено</div>
-          <div class="stat-value" style="color:var(--green)" id="stat-approved">0</div>
-          <div class="stat-sub">Конверсия</div>
+          <div class="stat-value" style="color:var(--green)">0</div>
+          <div class="stat-sub">Решение: одобрено</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">На рассмотрении</div>
-          <div class="stat-value" style="color:var(--yellow)" id="stat-pending">0</div>
+          <div class="stat-value" style="color:var(--yellow)">0</div>
           <div class="stat-sub">Ожидают решения</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Отказано</div>
-          <div class="stat-value" style="color:var(--red)" id="stat-rejected">0</div>
-          <div class="stat-sub">Отказы</div>
+          <div class="stat-value" style="color:var(--red)">0</div>
+          <div class="stat-sub">Решение: отказ</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ===== ANKETY LIST ===== -->
-  <div id="page-ankety" class="page" style="display:none">
+  <!-- ANKETY LIST PAGE -->
+  <div class="page" id="page-ankety">
     <div class="topbar">
       <div class="page-title">Анкеты клиентов</div>
       <div class="topbar-actions">
@@ -110,62 +114,78 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input placeholder="Поиск по ФИО, ID...">
         </div>
-        <button class="btn btn-primary" onclick="showPage('new-anketa')">+ Новая анкета</button>
+        <button class="btn btn-primary" onclick="navigate('new-anketa')">+ Новая анкета</button>
       </div>
     </div>
     <div class="content">
       <div class="card">
         <div class="empty-state">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-          <h3>Анкеты пока не созданы</h3>
-          <p>Нажмите «+ Новая анкета» чтобы создать первую</p>
+          <div class="empty-state-icon">📋</div>
+          <div class="empty-state-text">Анкеты пока не созданы</div>
+          <div style="margin-top:4px;font-size:12px;color:var(--text-light)">Нажмите «+ Новая анкета» чтобы начать</div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ===== NEW ANKETA (placeholder) ===== -->
-  <div id="page-new-anketa" class="page" style="display:none">
+  <!-- NEW ANKETA PAGE (placeholder) -->
+  <div class="page" id="page-new-anketa">
     <div class="topbar">
       <div class="page-title">Новая анкета</div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline">Сохранить черновик</button>
+        <button class="btn btn-primary">Сохранить анкету</button>
+      </div>
     </div>
     <div class="content">
-      <div class="card" style="padding:40px;text-align:center;color:var(--text-light)">
-        Форма анкеты будет реализована в Этапе 2
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-state-icon">🚧</div>
+          <div class="empty-state-text">Форма анкеты — Этап 2</div>
+          <div style="margin-top:4px;font-size:12px;color:var(--text-light)">Будет реализована в следующем этапе</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ===== APPROVALS (placeholder) ===== -->
-  <div id="page-approvals" class="page" style="display:none">
+  <!-- APPROVALS PAGE (placeholder) -->
+  <div class="page" id="page-approvals">
     <div class="topbar">
       <div class="page-title">Запросы на правку</div>
     </div>
     <div class="content">
-      <div class="card" style="padding:40px;text-align:center;color:var(--text-light)">
-        Запросы правок будут реализованы в Этапе 2
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-state-icon">✅</div>
+          <div class="empty-state-text">Активных запросов нет</div>
+          <div style="margin-top:4px;font-size:12px;color:var(--text-light)">Запросы на правку появятся здесь</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ===== CALCULATOR (placeholder) ===== -->
-  <div id="page-calculator" class="page" style="display:none">
+  <!-- CALCULATOR PAGE (placeholder) -->
+  <div class="page" id="page-calculator">
     <div class="topbar">
       <div class="page-title">Калькулятор андеррайтера</div>
     </div>
     <div class="content">
-      <div class="card" style="padding:40px;text-align:center;color:var(--text-light)">
-        Калькулятор будет реализован в Этапе 2
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-state-icon">🧮</div>
+          <div class="empty-state-text">Калькулятор — Этап 2</div>
+          <div style="margin-top:4px;font-size:12px;color:var(--text-light)">Будет реализован в следующем этапе</div>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- ===== USERS (Admin) ===== -->
-  <div id="page-users" class="page" style="display:none">
+  <!-- USERS / ADMIN PAGE -->
+  <div class="page" id="page-users">
     <div class="topbar">
-      <div class="page-title">Управление пользователями</div>
+      <div class="page-title">Пользователи</div>
       <div class="topbar-actions">
-        <button class="btn btn-primary" onclick="openCreateUserModal()">+ Создать пользователя</button>
+        <button class="btn btn-primary" onclick="openCreateUserModal()">+ Новый пользователь</button>
       </div>
     </div>
     <div class="content">
@@ -173,16 +193,16 @@
         <table>
           <thead>
             <tr>
-              <th>ID</th>
+              <th>Пользователь</th>
               <th>Логин</th>
-              <th>ФИО</th>
               <th>Роль</th>
               <th>Статус</th>
               <th>Создан</th>
               <th>Действия</th>
             </tr>
           </thead>
-          <tbody id="users-table-body">
+          <tbody id="usersTableBody">
+            <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
           </tbody>
         </table>
       </div>
@@ -192,72 +212,77 @@
 </main>
 
 <!-- CREATE USER MODAL -->
-<div class="modal-overlay" id="create-user-modal">
+<div class="modal-overlay" id="createUserModal">
   <div class="modal">
-    <div class="modal-title">Создать пользователя</div>
-    <div class="modal-subtitle">Заполните данные нового пользователя</div>
-    <div id="modal-error" class="login-error" style="margin-bottom:12px"></div>
-    <form id="create-user-form" class="modal-form" autocomplete="off">
-      <div class="form-group">
-        <label class="form-label">Логин <span class="required">*</span></label>
-        <input class="form-input" type="text" id="new-username" placeholder="Минимум 3 символа" required>
-      </div>
+    <div class="modal-header">
+      <div class="modal-title">Новый пользователь</div>
+      <button class="modal-close" onclick="closeCreateUserModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="createUserError" class="login-error" style="margin-bottom:16px"></div>
       <div class="form-group">
         <label class="form-label">ФИО <span class="required">*</span></label>
-        <input class="form-input" type="text" id="new-fullname" placeholder="Фамилия Имя" required>
+        <input class="form-input" id="newFullName" placeholder="Иванов Иван Иванович">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Логин <span class="required">*</span></label>
+        <input class="form-input" id="newUsername" placeholder="ivanov">
+        <span class="form-hint">Латиница, минимум 3 символа</span>
       </div>
       <div class="form-group">
         <label class="form-label">Пароль <span class="required">*</span></label>
-        <input class="form-input" type="password" id="new-password" placeholder="Минимум 6 символов" required>
+        <input class="form-input" type="password" id="newPassword" placeholder="Минимум 6 символов">
       </div>
       <div class="form-group">
         <label class="form-label">Роль <span class="required">*</span></label>
-        <select class="form-input" id="new-role" required>
+        <select class="form-input" id="newRole">
           <option value="inspector">Инспектор / Андеррайтер</option>
           <option value="admin">Администратор</option>
         </select>
       </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-outline" onclick="closeCreateUserModal()">Отмена</button>
-        <button type="submit" class="btn btn-primary">Создать</button>
-      </div>
-    </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCreateUserModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="createUser()" id="createUserBtn">Создать</button>
+    </div>
   </div>
 </div>
 
 <!-- EDIT USER MODAL -->
-<div class="modal-overlay" id="edit-user-modal">
+<div class="modal-overlay" id="editUserModal">
   <div class="modal">
-    <div class="modal-title">Редактировать пользователя</div>
-    <div class="modal-subtitle" id="edit-user-subtitle"></div>
-    <div id="edit-modal-error" class="login-error" style="margin-bottom:12px"></div>
-    <form id="edit-user-form" class="modal-form" autocomplete="off">
-      <input type="hidden" id="edit-user-id">
+    <div class="modal-header">
+      <div class="modal-title">Редактировать пользователя</div>
+      <button class="modal-close" onclick="closeEditUserModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="editUserError" class="login-error" style="margin-bottom:16px"></div>
+      <input type="hidden" id="editUserId">
       <div class="form-group">
-        <label class="form-label">ФИО</label>
-        <input class="form-input" type="text" id="edit-fullname">
+        <label class="form-label">ФИО <span class="required">*</span></label>
+        <input class="form-input" id="editFullName">
       </div>
       <div class="form-group">
         <label class="form-label">Новый пароль</label>
-        <input class="form-input" type="password" id="edit-password" placeholder="Оставьте пустым если не меняете">
+        <input class="form-input" type="password" id="editPassword" placeholder="Оставьте пустым, чтобы не менять">
       </div>
       <div class="form-group">
-        <label class="form-label">Роль</label>
-        <select class="form-input" id="edit-role">
+        <label class="form-label">Роль <span class="required">*</span></label>
+        <select class="form-input" id="editRole">
           <option value="inspector">Инспектор / Андеррайтер</option>
           <option value="admin">Администратор</option>
         </select>
       </div>
-      <div class="modal-actions">
-        <button type="button" class="btn btn-outline" onclick="closeEditUserModal()">Отмена</button>
-        <button type="submit" class="btn btn-primary">Сохранить</button>
-      </div>
-    </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeEditUserModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveUser()" id="saveUserBtn">Сохранить</button>
+    </div>
   </div>
 </div>
 
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
+<!-- TOAST CONTAINER -->
+<div class="toast-container" id="toastContainer"></div>
 
 <script src="/static/js/app.js"></script>
 </body>

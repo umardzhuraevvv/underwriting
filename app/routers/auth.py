@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.database import get_db
+from sqlalchemy.orm import Session
+
+from app.database import get_db, User
 from app.auth import verify_password, create_access_token, get_current_user
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -18,73 +19,40 @@ class TokenResponse(BaseModel):
     user: dict
 
 
-@router.post("/login")
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db=Depends(get_db)):
-    user = db.execute(
-        "SELECT * FROM users WHERE username = ?", (form_data.username,)
-    ).fetchone()
+class UserResponse(BaseModel):
+    id: int
+    username: str
+    full_name: str
+    role: str
+    is_active: bool
 
-    if not user or not verify_password(form_data.password, user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль",
-        )
 
-    if not user["is_active"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Учётная запись деактивирована",
-        )
+@router.post("/login", response_model=TokenResponse)
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == body.username).first()
+    if not user or not verify_password(body.password, user.password_hash):
+        raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Аккаунт деактивирован")
 
-    token = create_access_token({"sub": user["id"]})
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "full_name": user["full_name"],
-            "role": user["role"],
+    token = create_access_token({"sub": user.id, "role": user.role})
+    return TokenResponse(
+        access_token=token,
+        user={
+            "id": user.id,
+            "username": user.username,
+            "full_name": user.full_name,
+            "role": user.role,
         },
-    }
+    )
 
 
-@router.post("/login-json")
-def login_json(data: LoginRequest, db=Depends(get_db)):
-    user = db.execute(
-        "SELECT * FROM users WHERE username = ?", (data.username,)
-    ).fetchone()
-
-    if not user or not verify_password(data.password, user["password_hash"]):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Неверный логин или пароль",
-        )
-
-    if not user["is_active"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Учётная запись деактивирована",
-        )
-
-    token = create_access_token({"sub": user["id"]})
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "user": {
-            "id": user["id"],
-            "username": user["username"],
-            "full_name": user["full_name"],
-            "role": user["role"],
-        },
-    }
-
-
-@router.get("/me")
-def get_me(current_user: dict = Depends(get_current_user)):
-    return {
-        "id": current_user["id"],
-        "username": current_user["username"],
-        "full_name": current_user["full_name"],
-        "role": current_user["role"],
-    }
+@router.get("/me", response_model=UserResponse)
+def me(user: User = Depends(get_current_user)):
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        full_name=user.full_name,
+        role=user.role,
+        is_active=user.is_active,
+    )

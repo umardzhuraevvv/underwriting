@@ -1,81 +1,82 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Вход — Fintech Drive</title>
-<link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/css/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход — Fintech Drive</title>
+  <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-<div class="login-wrapper">
-  <div class="login-card">
-    <div class="login-logo">
-      <div class="logo-icon">FD</div>
-      <div>
-        <div class="logo-text">Fintech Drive</div>
-        <div class="logo-sub">Андеррайтинг</div>
+  <div class="login-wrapper">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="logo-icon">FD</div>
+        <div>
+          <div class="logo-text">Fintech Drive</div>
+          <div class="logo-sub">Андеррайтинг</div>
+        </div>
       </div>
+
+      <div class="login-title">Вход в систему</div>
+      <div class="login-subtitle">Введите логин и пароль для доступа</div>
+
+      <div id="loginError" class="login-error"></div>
+
+      <form class="login-form" id="loginForm" onsubmit="return handleLogin(event)">
+        <div class="form-group">
+          <label class="form-label">Логин <span class="required">*</span></label>
+          <input class="form-input" type="text" id="username" placeholder="Введите логин" required autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Пароль <span class="required">*</span></label>
+          <input class="form-input" type="password" id="password" placeholder="Введите пароль" required autocomplete="current-password">
+        </div>
+        <button class="btn btn-primary" type="submit" id="loginBtn" style="width:100%">Войти</button>
+      </form>
     </div>
-    <div class="login-title">Вход в систему</div>
-    <div class="login-subtitle">Введите логин и пароль для доступа</div>
-    <div id="login-error" class="login-error"></div>
-    <form id="login-form" class="login-form" autocomplete="off">
-      <div class="form-group">
-        <label class="form-label">Логин <span class="required">*</span></label>
-        <input class="form-input" type="text" id="username" placeholder="Введите логин" required autofocus>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Пароль <span class="required">*</span></label>
-        <input class="form-input" type="password" id="password" placeholder="Введите пароль" required>
-      </div>
-      <button type="submit" class="btn btn-primary btn-lg" id="login-btn">Войти</button>
-    </form>
   </div>
-</div>
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
-      .then(r => { if (r.ok) window.location.href = '/dashboard'; });
-  }
-});
 
-document.getElementById('login-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const errEl = document.getElementById('login-error');
-  const btn = document.getElementById('login-btn');
-  errEl.classList.remove('show');
-  btn.disabled = true;
-  btn.textContent = 'Входим...';
-
-  try {
-    const res = await fetch('/api/auth/login-json', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        username: document.getElementById('username').value.trim(),
-        password: document.getElementById('password').value,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      errEl.textContent = data.detail || 'Ошибка авторизации';
-      errEl.classList.add('show');
-      return;
+  <script>
+    // Redirect if already logged in
+    if (localStorage.getItem('token')) {
+      window.location.href = '/';
     }
-    localStorage.setItem('token', data.access_token);
-    localStorage.setItem('user', JSON.stringify(data.user));
-    window.location.href = '/dashboard';
-  } catch (err) {
-    errEl.textContent = 'Ошибка подключения к серверу';
-    errEl.classList.add('show');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Войти';
-  }
-});
-</script>
+
+    async function handleLogin(e) {
+      e.preventDefault();
+      const errEl = document.getElementById('loginError');
+      const btn = document.getElementById('loginBtn');
+      errEl.classList.remove('show');
+      btn.disabled = true;
+      btn.textContent = 'Вход...';
+
+      try {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: document.getElementById('username').value.trim(),
+            password: document.getElementById('password').value,
+          }),
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.detail || 'Ошибка авторизации');
+        }
+
+        const data = await res.json();
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        window.location.href = '/';
+      } catch (err) {
+        errEl.textContent = err.message;
+        errEl.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Войти';
+      }
+    }
+  </script>
 </body>
 </html>
