@@ -13,7 +13,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String(50), unique=True, nullable=False, index=True)
+    email = Column(String(150), unique=True, nullable=False, index=True)
     full_name = Column(String(150), nullable=False)
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False)  # admin | inspector
@@ -36,12 +36,12 @@ def init_db():
 
     db = SessionLocal()
     try:
-        existing = db.query(User).filter(User.username == "admin").first()
+        existing = db.query(User).filter(User.email == "admin@fintechdrive.uz").first()
         if not existing:
             admin = User(
-                username="admin",
+                email="admin@fintechdrive.uz",
                 full_name="Администратор",
-                password_hash=hash_password("admin123"),
+                password_hash=hash_password("Forever0109!"),
                 role="admin",
                 is_active=True,
             )

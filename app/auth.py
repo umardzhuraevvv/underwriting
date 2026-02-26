@@ -1,4 +1,6 @@
 import os
+import secrets
+import string
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -14,6 +16,18 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480  # 8 hours
 
 security = HTTPBearer()
+
+
+def generate_password(length: int = 10) -> str:
+    alphabet = string.ascii_letters + string.digits + "!@#$%&*"
+    while True:
+        pwd = "".join(secrets.choice(alphabet) for _ in range(length))
+        has_lower = any(c in string.ascii_lowercase for c in pwd)
+        has_upper = any(c in string.ascii_uppercase for c in pwd)
+        has_digit = any(c in string.digits for c in pwd)
+        has_special = any(c in "!@#$%&*" for c in pwd)
+        if has_lower and has_upper and has_digit and has_special:
+            return pwd
 
 
 def verify_password(plain: str, hashed: str) -> bool:

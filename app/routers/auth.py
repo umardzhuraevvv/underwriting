@@ -9,7 +9,7 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 class LoginRequest(BaseModel):
-    username: str
+    email: str
     password: str
 
 
@@ -21,7 +21,7 @@ class TokenResponse(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    username: str
+    email: str
     full_name: str
     role: str
     is_active: bool
@@ -29,7 +29,7 @@ class UserResponse(BaseModel):
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.username == body.username).first()
+    user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Неверный логин или пароль")
     if not user.is_active:
@@ -40,7 +40,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
         access_token=token,
         user={
             "id": user.id,
-            "username": user.username,
+            "email": user.email,
             "full_name": user.full_name,
             "role": user.role,
         },
@@ -51,7 +51,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 def me(user: User = Depends(get_current_user)):
     return UserResponse(
         id=user.id,
-        username=user.username,
+        email=user.email,
         full_name=user.full_name,
         role=user.role,
         is_active=user.is_active,

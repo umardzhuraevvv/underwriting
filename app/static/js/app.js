@@ -179,17 +179,14 @@ function renderUsersTable() {
     return `
       <tr>
         <td><div class="td-main">${escapeHtml(u.full_name)}</div></td>
-        <td><code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;background:var(--bg);padding:2px 8px;border-radius:4px">${escapeHtml(u.username)}</code></td>
+        <td><code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;background:var(--bg);padding:2px 8px;border-radius:4px">${escapeHtml(u.email)}</code></td>
         <td>${roleBadge}</td>
         <td>${statusBadge}</td>
         <td>${created}</td>
         <td>
           <div style="display:flex;gap:6px">
             <button class="btn btn-outline btn-sm" onclick="openEditUserModal(${u.id})">Изменить</button>
-            ${u.is_active
-              ? `<button class="btn btn-sm btn-danger" onclick="toggleUserStatus(${u.id}, false)">Деактивировать</button>`
-              : `<button class="btn btn-sm btn-success" onclick="toggleUserStatus(${u.id}, true)">Активировать</button>`
-            }
+            <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Удалить</button>
           </div>
         </td>
       </tr>
@@ -201,8 +198,7 @@ function renderUsersTable() {
 
 function openCreateUserModal() {
   document.getElementById('newFullName').value = '';
-  document.getElementById('newUsername').value = '';
-  document.getElementById('newPassword').value = '';
+  document.getElementById('newEmail').value = '';
   document.getElementById('newRole').value = 'inspector';
   document.getElementById('createUserError').classList.remove('show');
   document.getElementById('createUserModal').classList.add('show');
@@ -218,24 +214,17 @@ async function createUser() {
   errEl.classList.remove('show');
 
   const fullName = document.getElementById('newFullName').value.trim();
-  const username = document.getElementById('newUsername').value.trim();
-  const password = document.getElementById('newPassword').value;
+  const email = document.getElementById('newEmail').value.trim();
   const role = document.getElementById('newRole').value;
 
-  if (!fullName || !username || !password) {
+  if (!fullName || !email) {
     errEl.textContent = 'Заполните все обязательные поля';
     errEl.classList.add('show');
     return;
   }
 
-  if (username.length < 3) {
-    errEl.textContent = 'Логин должен быть минимум 3 символа';
-    errEl.classList.add('show');
-    return;
-  }
-
-  if (password.length < 6) {
-    errEl.textContent = 'Пароль должен быть минимум 6 символов';
+  if (!email.includes('@')) {
+    errEl.textContent = 'Введите корректный email';
     errEl.classList.add('show');
     return;
   }
@@ -247,18 +236,19 @@ async function createUser() {
     const res = await fetch('/api/admin/users', {
       method: 'POST',
       headers: authHeaders(),
-      body: JSON.stringify({ full_name: fullName, username, password, role }),
+      body: JSON.stringify({ full_name: fullName, email, role }),
     });
 
     if (res.status === 401) { logout(); return; }
 
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.detail || 'Ошибка создания');
-    }
+    const data = await res.json();
 
+    if (!res.ok) {
+      const msg = typeof data.detail === 'string' ? data.detail : 'Ошибка создания';
+      throw new Error(msg);
+    }
     closeCreateUserModal();
-    showToast('Пользователь создан');
+    showCredentials(data.email, data.generated_password);
     loadUsers();
   } catch (err) {
     errEl.textContent = err.message;
@@ -279,6 +269,7 @@ function openEditUserModal(userId) {
   document.getElementById('editFullName').value = user.full_name;
   document.getElementById('editPassword').value = '';
   document.getElementById('editRole').value = user.role;
+  document.getElementById('editIsActive').checked = user.is_active;
   document.getElementById('editUserError').classList.remove('show');
   document.getElementById('editUserModal').classList.add('show');
 }
@@ -312,7 +303,8 @@ async function saveUser() {
   btn.disabled = true;
   btn.textContent = 'Сохранение...';
 
-  const body = { full_name: fullName, role };
+  const isActive = document.getElementById('editIsActive').checked;
+  const body = { full_name: fullName, role, is_active: isActive };
   if (password) body.password = password;
 
   try {
@@ -341,31 +333,90 @@ async function saveUser() {
   }
 }
 
-// ---------- TOGGLE USER STATUS ----------
+// ---------- RESET PASSWORD ----------
 
-async function toggleUserStatus(userId, isActive) {
-  const action = isActive ? 'активировать' : 'деактивировать';
-  if (!confirm(`Вы уверены, что хотите ${action} пользователя?`)) return;
+async function resetUserPassword() {
+  const userId = document.getElementById('editUserId').value;
+  if (!confirm('Сгенерировать новый пароль для этого пользователя?')) return;
+
+  const btn = document.getElementById('resetPwdBtn');
+  btn.disabled = true;
+  btn.textContent = 'Сброс...';
+
+  try {
+    const res = await fetch('/api/admin/users/' + userId + '/reset-password', {
+      method: 'POST',
+      headers: authHeaders(),
+    });
+
+    if (res.status === 401) { logout(); return; }
+
+    const data = await res.json();
+    if (!res.ok) {
+      const msg = typeof data.detail === 'string' ? data.detail : 'Ошибка сброса';
+      throw new Error(msg);
+    }
+
+    closeEditUserModal();
+    showCredentials(data.email, data.generated_password);
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Сбросить';
+  }
+}
+
+// ---------- DELETE USER ----------
+
+async function deleteUser(userId) {
+  if (!confirm('Вы уверены, что хотите удалить пользователя?')) return;
 
   try {
     const res = await fetch('/api/admin/users/' + userId, {
-      method: 'PATCH',
+      method: 'DELETE',
       headers: authHeaders(),
-      body: JSON.stringify({ is_active: isActive }),
     });
 
     if (res.status === 401) { logout(); return; }
 
     if (!res.ok) {
       const data = await res.json();
-      throw new Error(data.detail || 'Ошибка');
+      const msg = typeof data.detail === 'string' ? data.detail : 'Ошибка удаления';
+      throw new Error(msg);
     }
 
-    showToast(isActive ? 'Пользователь активирован' : 'Пользователь деактивирован');
+    showToast('Пользователь удалён');
     loadUsers();
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+// ---------- CREDENTIALS MODAL ----------
+
+let _credentialsText = '';
+
+function showCredentials(email, password) {
+  _credentialsText = 'Логин: ' + email + '\nПароль: ' + password;
+  document.getElementById('credentialsText').innerHTML =
+    '<div><span style="color:var(--text-light)">Логин:</span> ' + escapeHtml(email) + '</div>' +
+    '<div><span style="color:var(--text-light)">Пароль:</span> ' + escapeHtml(password) + '</div>';
+  document.getElementById('copyCredBtn').textContent = 'Скопировать';
+  document.getElementById('credentialsModal').classList.add('show');
+}
+
+function closeCredentialsModal() {
+  document.getElementById('credentialsModal').classList.remove('show');
+}
+
+function copyCredentials() {
+  navigator.clipboard.writeText(_credentialsText).then(() => {
+    document.getElementById('copyCredBtn').textContent = 'Скопировано!';
+    setTimeout(() => {
+      document.getElementById('copyCredBtn').textContent = 'Скопировать';
+    }, 2000);
+  });
 }
 
 // ---------- UTILS ----------

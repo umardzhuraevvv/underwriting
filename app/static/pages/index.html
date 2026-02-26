@@ -194,7 +194,7 @@
           <thead>
             <tr>
               <th>Пользователь</th>
-              <th>Логин</th>
+              <th>Email</th>
               <th>Роль</th>
               <th>Статус</th>
               <th>Создан</th>
@@ -225,13 +225,8 @@
         <input class="form-input" id="newFullName" placeholder="Иванов Иван Иванович">
       </div>
       <div class="form-group">
-        <label class="form-label">Логин <span class="required">*</span></label>
-        <input class="form-input" id="newUsername" placeholder="ivanov">
-        <span class="form-hint">Латиница, минимум 3 символа</span>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Пароль <span class="required">*</span></label>
-        <input class="form-input" type="password" id="newPassword" placeholder="Минимум 6 символов">
+        <label class="form-label">Email <span class="required">*</span></label>
+        <input class="form-input" type="email" id="newEmail" placeholder="example@mail.com">
       </div>
       <div class="form-group">
         <label class="form-label">Роль <span class="required">*</span></label>
@@ -239,6 +234,9 @@
           <option value="inspector">Инспектор / Андеррайтер</option>
           <option value="admin">Администратор</option>
         </select>
+      </div>
+      <div style="font-size:13px;color:var(--text-light);background:var(--bg);padding:10px 14px;border-radius:8px;margin-top:4px">
+        Пароль будет сгенерирован автоматически и отправлен на указанный email
       </div>
     </div>
     <div class="modal-footer">
@@ -264,7 +262,10 @@
       </div>
       <div class="form-group">
         <label class="form-label">Новый пароль</label>
-        <input class="form-input" type="password" id="editPassword" placeholder="Оставьте пустым, чтобы не менять">
+        <div style="display:flex;gap:8px">
+          <input class="form-input" type="password" id="editPassword" placeholder="Оставьте пустым, чтобы не менять" style="flex:1">
+          <button class="btn btn-outline btn-sm" type="button" onclick="resetUserPassword()" id="resetPwdBtn" style="white-space:nowrap;height:38px">Сбросить</button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Роль <span class="required">*</span></label>
@@ -273,10 +274,38 @@
           <option value="admin">Администратор</option>
         </select>
       </div>
+      <div class="form-group">
+        <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="editIsActive" style="width:16px;height:16px;accent-color:var(--purple)">
+          Аккаунт активен
+        </label>
+      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeEditUserModal()">Отмена</button>
       <button class="btn btn-primary" onclick="saveUser()" id="saveUserBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREDENTIALS MODAL -->
+<div class="modal-overlay" id="credentialsModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Данные для входа</div>
+      <button class="modal-close" onclick="closeCredentialsModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text-light);margin-bottom:12px">Пользователь создан. Передайте эти данные сотруднику:</div>
+      <div style="background:var(--bg);border-radius:8px;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:13px;line-height:1.7;position:relative" id="credentialsBlock">
+        <div id="credentialsText"></div>
+        <button class="btn btn-outline btn-sm" onclick="copyCredentials()" id="copyCredBtn" style="position:absolute;top:10px;right:10px;font-size:11px;padding:4px 10px">
+          Скопировать
+        </button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeCredentialsModal()">Готово</button>
     </div>
   </div>
 </div>

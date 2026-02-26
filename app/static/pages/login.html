@@ -18,14 +18,14 @@
       </div>
 
       <div class="login-title">Вход в систему</div>
-      <div class="login-subtitle">Введите логин и пароль для доступа</div>
+      <div class="login-subtitle">Введите email и пароль для доступа</div>
 
       <div id="loginError" class="login-error"></div>
 
       <form class="login-form" id="loginForm" onsubmit="return handleLogin(event)">
         <div class="form-group">
-          <label class="form-label">Логин <span class="required">*</span></label>
-          <input class="form-input" type="text" id="username" placeholder="Введите логин" required autocomplete="username">
+          <label class="form-label">Email <span class="required">*</span></label>
+          <input class="form-input" type="email" id="email" placeholder="example@mail.com" required autocomplete="email">
         </div>
         <div class="form-group">
           <label class="form-label">Пароль <span class="required">*</span></label>
@@ -55,14 +55,15 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            username: document.getElementById('username').value.trim(),
+            email: document.getElementById('email').value.trim(),
             password: document.getElementById('password').value,
           }),
         });
 
         if (!res.ok) {
           const data = await res.json();
-          throw new Error(data.detail || 'Ошибка авторизации');
+          const msg = typeof data.detail === 'string' ? data.detail : 'Ошибка авторизации';
+          throw new Error(msg);
         }
 
         const data = await res.json();
