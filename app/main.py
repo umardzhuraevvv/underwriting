@@ -30,16 +30,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/api/health")
 def health():
-    import os
-    from app.database import DATABASE_URL, _is_sqlite
-    db_type = "sqlite" if _is_sqlite else "postgresql"
-    # Check all possible DB env vars
-    env_vars = {}
-    for key in ["DATABASE_URL", "DATABASE_PUBLIC_URL", "DATABASE_PRIVATE_URL", "PGDATABASE", "POSTGRES_URL"]:
-        val = os.getenv(key)
-        if val:
-            env_vars[key] = val[:20] + "..."
-    return {"status": "ok", "db": db_type, "db_url_prefix": DATABASE_URL[:25] + "...", "env_db_vars": env_vars}
+    return {"status": "ok"}
 
 
 @app.get("/login")
