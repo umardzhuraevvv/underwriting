@@ -5,7 +5,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.database import init_db
-from app.routers import auth, admin
+from app.routers import auth, admin, anketa
 
 
 @asynccontextmanager
@@ -18,6 +18,7 @@ app = FastAPI(title="Fintech Drive — Андеррайтинг", lifespan=lifes
 
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(anketa.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -44,4 +45,39 @@ def admin_page():
 
 @app.get("/dashboard")
 def dashboard_page():
+    return FileResponse("app/static/pages/index.html")
+
+
+@app.get("/anketa/{anketa_id}")
+def anketa_page(anketa_id: int):
+    return FileResponse("app/static/pages/index.html")
+
+
+@app.get("/ankety")
+def ankety_page():
+    return FileResponse("app/static/pages/index.html")
+
+
+@app.get("/new-anketa")
+def new_anketa_page():
+    return FileResponse("app/static/pages/index.html")
+
+
+@app.get("/approvals")
+def approvals_page():
+    return FileResponse("app/static/pages/index.html")
+
+
+@app.get("/admin/rules")
+def rules_page():
+    return FileResponse("app/static/pages/index.html")
+
+
+@app.get("/admin/risk-rules")
+def risk_rules_page():
+    return FileResponse("app/static/pages/index.html")
+
+
+@app.get("/calculator")
+def calculator_page():
     return FileResponse("app/static/pages/index.html")

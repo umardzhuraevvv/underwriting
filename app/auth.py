@@ -9,7 +9,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from app.database import get_db, User
+from app.database import get_db, User, Role
 
 SECRET_KEY = os.getenv("SECRET_KEY", "fintech-drive-underwriting-secret-2026")
 ALGORITHM = "HS256"
@@ -56,17 +56,67 @@ def get_current_user(
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = int(payload.get("sub"))
         if user_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Недействительный токен")
     except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Недействительный токен")
 
     user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
     if user is None:
-        raise HTTPException(status_code=401, detail="User not found or deactivated")
+        raise HTTPException(status_code=401, detail="Пользователь не найден или деактивирован")
     return user
 
 
 def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Admin access required")
+        raise HTTPException(status_code=403, detail="Требуются права администратора")
     return user
+
+
+PERMISSION_KEYS = [
+    "anketa_create", "anketa_edit", "anketa_view_all", "anketa_conclude",
+    "anketa_delete", "user_manage", "analytics_view", "export_excel", "rules_manage",
+]
+
+
+def get_user_permissions(user: User, db: Session) -> dict:
+    """Get permissions dict for user. Reads from user.position (Role), fallback to user.role string."""
+    # If user has a Role assigned, read from it
+    if user.role_id:
+        role = db.query(Role).filter(Role.id == user.role_id).first()
+        if role:
+            return {k: getattr(role, k, False) for k in PERMISSION_KEYS}
+
+    # Fallback: admin gets all, inspector gets basic
+    if user.role == "admin":
+        return {k: True for k in PERMISSION_KEYS}
+    return {
+        "anketa_create": True, "anketa_edit": True, "anketa_view_all": False,
+        "anketa_conclude": True, "anketa_delete": False, "user_manage": False,
+        "analytics_view": False, "export_excel": False, "rules_manage": False,
+    }
+
+
+def require_permission(perm_name: str):
+    """FastAPI dependency factory — checks a specific permission."""
+    def dependency(
+        credentials: HTTPAuthorizationCredentials = Depends(security),
+        db: Session = Depends(get_db),
+    ) -> User:
+        token = credentials.credentials
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            user_id = int(payload.get("sub"))
+            if user_id is None:
+                raise HTTPException(status_code=401, detail="Недействительный токен")
+        except JWTError:
+            raise HTTPException(status_code=401, detail="Недействительный токен")
+
+        user = db.query(User).filter(User.id == user_id, User.is_active == True).first()
+        if user is None:
+            raise HTTPException(status_code=401, detail="Пользователь не найден или деактивирован")
+
+        perms = get_user_permissions(user, db)
+        if not perms.get(perm_name, False):
+            raise HTTPException(status_code=403, detail=f"Нет права: {perm_name}")
+        return user
+    return dependency

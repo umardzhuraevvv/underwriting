@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fintech Drive — Андеррайтинг</title>
   <link rel="stylesheet" href="/static/css/style.css">
+  <script src="/static/js/qrcode.min.js"></script>
 </head>
 <body>
 
@@ -31,13 +32,18 @@
       Анкеты
       <span class="nav-badge" id="anketyBadge">0</span>
     </a>
-    <a class="nav-item" data-page="new-anketa" onclick="navigate('new-anketa')">
+    <a class="nav-item" data-page="new-anketa" onclick="createAnketa()">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       Новая анкета
     </a>
     <a class="nav-item" data-page="approvals" onclick="navigate('approvals')">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
       Запросы правок
+      <span class="nav-badge" id="approvalsBadge" style="display:none">0</span>
+    </a>
+    <a class="nav-item" data-page="employee-stats" onclick="navigate('employee-stats')" id="empStatsNavItem">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="18" y1="8" x2="18" y2="14"/><line x1="21" y1="11" x2="15" y2="11"/></svg>
+      Аналитика сотрудников
     </a>
 
     <div class="nav-section" style="margin-top:8px">Инструменты</div>
@@ -51,7 +57,36 @@
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Пользователи
     </a>
+    <a class="nav-item" data-page="roles" onclick="navigate('roles')" id="rolesNavItem">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 1 5 5v1a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><path d="M20 21v-1a7 7 0 0 0-8-6.93"/><path d="M4 21v-1a7 7 0 0 1 6-6.93"/></svg>
+      Должности
+    </a>
+    <a class="nav-item" data-page="rules" onclick="navigate('rules')" id="rulesNavItem">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      Правила
+    </a>
+    <a class="nav-item" data-page="risk-rules" onclick="navigate('risk-rules')" id="riskRulesNavItem">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Риск-правила
+    </a>
   </nav>
+
+  <div class="notification-section" id="notificationSection">
+    <button class="notification-bell" onclick="toggleNotificationPanel()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      Уведомления
+      <span class="notification-badge" id="notifBadge" style="display:none">0</span>
+    </button>
+    <div class="notification-dropdown" id="notifDropdown" style="display:none">
+      <div class="notif-dropdown-header">
+        <span class="notif-dropdown-title">Уведомления</span>
+        <button class="btn btn-sm btn-outline" onclick="markAllNotificationsRead()">Прочитать все</button>
+      </div>
+      <div class="notif-dropdown-body" id="notifList"></div>
+    </div>
+  </div>
 
   <div class="sidebar-user">
     <div class="user-avatar" id="userAvatar">АД</div>
@@ -76,30 +111,50 @@
     <div class="topbar">
       <div class="page-title">Дашборд</div>
       <div class="topbar-actions">
-        <button class="btn btn-primary" onclick="navigate('new-anketa')">+ Новая анкета</button>
+        <div class="period-filter">
+          <button class="period-btn active" onclick="setDashboardPeriod('week')">Неделя</button>
+          <button class="period-btn" onclick="setDashboardPeriod('month')">Месяц</button>
+          <button class="period-btn" onclick="setDashboardPeriod('custom')">Период</button>
+          <div class="period-dates" id="periodDates">
+            <input type="date" id="periodFrom">
+            <span style="color:var(--text-light)">—</span>
+            <input type="date" id="periodTo">
+            <button class="btn btn-sm btn-primary" onclick="applyCustomPeriod()">Применить</button>
+          </div>
+        </div>
+        <div class="period-filter" style="margin-left:8px">
+          <button class="period-btn client-filter-btn active" data-ct="" onclick="setClientTypeFilter('')">Все</button>
+          <button class="period-btn client-filter-btn" data-ct="individual" onclick="setClientTypeFilter('individual')">Физ. лица</button>
+          <button class="period-btn client-filter-btn" data-ct="legal_entity" onclick="setClientTypeFilter('legal_entity')">Юр. лица</button>
+        </div>
+        <button class="btn btn-primary" onclick="createAnketa()">+ Новая анкета</button>
       </div>
     </div>
     <div class="content">
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-label">Всего анкет</div>
-          <div class="stat-value">0</div>
-          <div class="stat-sub">В системе</div>
+      <div class="stats-row" id="dashboardStats">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="funnel-card">
+        <div class="funnel-title">Воронка анкет</div>
+        <div id="funnelBody">
+          <!-- Rendered by JS -->
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Одобрено</div>
-          <div class="stat-value" style="color:var(--green)">0</div>
-          <div class="stat-sub">Решение: одобрено</div>
+        <div class="deleted-count" id="deletedCount"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px">
+        <div class="funnel-card">
+          <div class="funnel-title">Аналитика</div>
+          <div class="stats-row" style="grid-template-columns:1fr 1fr;margin-bottom:0" id="analyticsCards"></div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">На рассмотрении</div>
-          <div class="stat-value" style="color:var(--yellow)">0</div>
-          <div class="stat-sub">Ожидают решения</div>
+        <div class="funnel-card">
+          <div class="funnel-title">Тренд</div>
+          <div id="trendChart" style="min-height:180px"></div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Отказано</div>
-          <div class="stat-value" style="color:var(--red)">0</div>
-          <div class="stat-sub">Решение: отказ</div>
+      </div>
+      <div style="margin-top:16px">
+        <div class="funnel-card">
+          <div class="funnel-title">Распределение по риск-грейдам</div>
+          <div id="riskDistribution"></div>
         </div>
       </div>
     </div>
@@ -112,70 +167,1192 @@
       <div class="topbar-actions">
         <div class="search-bar">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          <input placeholder="Поиск по ФИО, ID...">
+          <input placeholder="Поиск по ФИО, ID..." id="anketySearch" oninput="filterAnketas()">
         </div>
-        <button class="btn btn-primary" onclick="navigate('new-anketa')">+ Новая анкета</button>
+        <button class="btn btn-primary" onclick="createAnketa()">+ Новая анкета</button>
       </div>
     </div>
     <div class="content">
-      <div class="card">
-        <div class="empty-state">
-          <div class="empty-state-icon">📋</div>
-          <div class="empty-state-text">Анкеты пока не созданы</div>
-          <div style="margin-top:4px;font-size:12px;color:var(--text-light)">Нажмите «+ Новая анкета» чтобы начать</div>
+      <div class="anketa-filters" style="display:flex;gap:10px;flex-wrap:wrap;padding:0 0 12px 0;align-items:flex-end">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:var(--text-light);font-weight:500">Статус</label>
+          <select class="form-input" id="filterStatus" onchange="filterAnketas()" style="padding:6px 10px;font-size:12.5px;min-width:140px">
+            <option value="">Все статусы</option>
+            <option value="draft">Черновик</option>
+            <option value="saved">Сохранена</option>
+            <option value="approved">Одобрена</option>
+            <option value="review">На рассмотр.</option>
+            <option value="rejected_underwriter">Отказ андерр.</option>
+            <option value="rejected_client">Отказ клиента</option>
+          </select>
         </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:var(--text-light);font-weight:500">Тип клиента</label>
+          <select class="form-input" id="filterClientType" onchange="filterAnketas()" style="padding:6px 10px;font-size:12.5px;min-width:140px">
+            <option value="">Все типы</option>
+            <option value="individual">Физ. лицо</option>
+            <option value="legal_entity">Юр. лицо</option>
+          </select>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:var(--text-light);font-weight:500">Дата от</label>
+          <input type="date" class="form-input" id="filterDateFrom" onchange="filterAnketas()" style="padding:6px 10px;font-size:12.5px">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <label style="font-size:11px;color:var(--text-light);font-weight:500">Дата до</label>
+          <input type="date" class="form-input" id="filterDateTo" onchange="filterAnketas()" style="padding:6px 10px;font-size:12.5px">
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="clearAnketaFilters()" style="height:34px;margin-bottom:1px">Сбросить</button>
+      </div>
+      <div class="card anketa-table">
+        <table>
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>Клиент</th>
+              <th>Статус</th>
+              <th>Автомобиль</th>
+              <th>Создатель</th>
+              <th>Дата</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="anketyTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 
-  <!-- NEW ANKETA PAGE (placeholder) -->
+  <!-- NEW ANKETA PAGE -->
   <div class="page" id="page-new-anketa">
     <div class="topbar">
       <div class="page-title">Новая анкета</div>
       <div class="topbar-actions">
-        <button class="btn btn-outline">Сохранить черновик</button>
-        <button class="btn btn-primary">Сохранить анкету</button>
+        <button class="btn btn-outline" onclick="saveAnketaDraft()">Сохранить черновик</button>
+        <button class="btn btn-primary" onclick="saveAnketaFinal()">Сохранить анкету</button>
       </div>
     </div>
     <div class="content">
+      <!-- Client type selector -->
+      <div class="client-type-selector" id="clientTypeSelector">
+        <div class="client-type-option selected" data-type="individual" onclick="selectClientType('individual')">
+          <div class="client-type-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="client-type-label">Физическое лицо</div>
+          <div class="client-type-desc">Анкета для частного клиента</div>
+        </div>
+        <div class="client-type-option" data-type="legal_entity" onclick="selectClientType('legal_entity')">
+          <div class="client-type-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+          </div>
+          <div class="client-type-label">Юридическое лицо</div>
+          <div class="client-type-desc">Анкета для компании</div>
+        </div>
+      </div>
+
+      <div class="view-anketa-layout">
+      <div class="view-anketa-main">
       <div class="card">
-        <div class="empty-state">
-          <div class="empty-state-icon">🚧</div>
-          <div class="empty-state-text">Форма анкеты — Этап 2</div>
-          <div style="margin-top:4px;font-size:12px;color:var(--text-light)">Будет реализована в следующем этапе</div>
+        <!-- Tabs for individual -->
+        <div class="tabs" id="individualTabs">
+          <div class="tab active" data-tab="personal" onclick="switchTab('personal')">1. Личные данные</div>
+          <div class="tab" data-tab="deal" onclick="switchTab('deal')">2. Условия сделки</div>
+          <div class="tab" data-tab="income" onclick="switchTab('income')">3. Доходы</div>
+          <div class="tab" data-tab="credit" onclick="switchTab('credit')">4. Кред. история</div>
+        </div>
+        <!-- Tabs for legal entity -->
+        <div class="tabs" id="legalTabs" style="display:none">
+          <div class="tab active" data-tab="le-company" onclick="switchTab('le-company')">1. Компания</div>
+          <div class="tab" data-tab="deal" onclick="switchTab('deal')">2. Условия сделки</div>
+          <div class="tab" data-tab="le-income" onclick="switchTab('le-income')">3. Доходы</div>
+          <div class="tab" data-tab="le-credit" onclick="switchTab('le-credit')">4. Кред. история</div>
+          <div class="tab" data-tab="le-guarantor" onclick="switchTab('le-guarantor')">5. Поручитель</div>
+        </div>
+        <div class="tab-progress"><div class="tab-progress-fill" id="tabProgressFill" style="width:25%"></div></div>
+
+        <!-- TAB 1: Personal (individual) -->
+        <div class="tab-content active" id="tab-personal">
+          <div class="section-divider">Личная информация</div>
+          <div class="form-grid">
+            <div class="form-group full">
+              <label class="form-label">ФИО (по паспорту, латиница) <span class="required">*</span></label>
+              <input class="form-input mono" id="f-full_name" placeholder="IVANOV IVAN IVAN O'G'LI" style="font-size:14px">
+              <span class="form-hint">Только латиница — как в паспорте</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Дата рождения <span class="required">*</span></label>
+              <input class="form-input" type="date" id="f-birth_date">
+              <span class="form-hint">Мин. возраст 21 год</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">ПИНФЛ <span class="required">*</span></label>
+              <input class="form-input mono" id="f-pinfl" placeholder="00000000000000" maxlength="14">
+              <span class="form-hint">Ровно 14 цифр</span>
+              <div class="field-error" id="pinfl-error" style="display:none;color:var(--red);font-size:12px;margin-top:4px"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Паспорт / ID карта <span class="required">*</span></label>
+              <input class="form-input mono" id="f-passport_series" placeholder="AA 0000000" maxlength="10">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Дата выдачи <span class="required">*</span></label>
+              <input class="form-input" type="date" id="f-passport_issue_date">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Кем выдан <span class="required">*</span></label>
+              <input class="form-input" id="f-passport_issued_by" placeholder="IIV 26277">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Адрес прописки <span class="required">*</span></label>
+              <input class="form-input" id="f-registration_address" placeholder="г. Ташкент, Мирзо-Улугбекский район, ул. Зиелилар, дом 18">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Ориентир (прописка)</label>
+              <input class="form-input" id="f-registration_landmark" placeholder="Ближайший ориентир к адресу прописки">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Адрес фактический</label>
+              <input class="form-input" id="f-actual_address" placeholder="Если отличается от адреса прописки">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Ориентир (фактический)</label>
+              <input class="form-input" id="f-actual_landmark" placeholder="Ближайший ориентир к фактическому адресу">
+            </div>
+          </div>
+          <div class="section-divider">Контакты</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Телефон клиента <span class="required">*</span></label>
+              <input class="form-input mono" id="f-phone_numbers" placeholder="+998 90 000-00-00">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Дополнительные контакты <span class="required">*</span></label>
+              <div id="relativePhonesContainer"></div>
+              <button type="button" class="btn btn-outline btn-sm" onclick="addRelativePhoneRow()" style="margin-top:8px">+ Добавить контакт</button>
+              <span class="form-hint">Минимум 2 дополнительных контакта</span>
+            </div>
+            <div class="form-group full">
+              <div class="consent-row">
+                <input type="checkbox" id="f-consent_personal_data">
+                <label for="f-consent_personal_data">
+                  Клиент дал устное согласие на обработку персональных данных <span class="required">*</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="tab-nav-buttons">
+            <div></div>
+            <button class="btn btn-primary" onclick="goNextTab('personal')">Далее &rarr;</button>
+          </div>
+        </div>
+
+        <!-- TAB 2: Deal conditions -->
+        <div class="tab-content" id="tab-deal">
+          <div class="section-divider">Условия сделки</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Партнёр</label>
+              <input class="form-input" id="f-partner" placeholder="Название компании-партнёра">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Цель покупки</label>
+              <select class="form-input" id="f-purchase_purpose">
+                <option value="">— выберите —</option>
+                <option value="Для себя">Для себя</option>
+                <option value="Такси">Такси</option>
+                <option value="Для бизнеса">Для бизнеса</option>
+                <option value="Другое">Другое</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Марка <span class="required">*</span></label>
+              <input class="form-input" id="f-car_brand" placeholder="Chevrolet">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Модель <span class="required">*</span></label>
+              <input class="form-input" id="f-car_model" placeholder="Lacetti">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Комплектация</label>
+              <input class="form-input" id="f-car_specs" placeholder="Механика / Автомат / с люком">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Год выпуска</label>
+              <input class="form-input" type="number" id="f-car_year" placeholder="2024" min="2000" max="2030">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Пробег (км)</label>
+              <input class="form-input mono" type="number" id="f-mileage" placeholder="50000" min="0" step="1000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Стоимость (сум) <span class="required">*</span></label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-purchase_price" placeholder="150 000 000">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ПВ % <span class="required">*</span></label>
+              <input class="form-input mono" type="number" id="f-down_payment_percent" placeholder="10" min="0" max="100" step="0.1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ПВ сумма (авто)</label>
+              <input class="form-input mono calc" id="f-down_payment_amount" readonly>
+              <span class="form-hint">Рассчитывается автоматически</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Остаток (авто)</label>
+              <input class="form-input mono calc" id="f-remaining_amount" readonly>
+              <span class="form-hint">Рассчитывается автоматически</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Срок (мес) <span class="required">*</span></label>
+              <select class="form-input" id="f-lease_term_months">
+                <option value="">— выберите —</option>
+                <option value="12">12</option>
+                <option value="18">18</option>
+                <option value="24">24</option>
+                <option value="36">36</option>
+                <option value="48">48</option>
+                <option value="60">60</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ставка % <span class="required">*</span></label>
+              <input class="form-input mono" type="number" id="f-interest_rate" placeholder="30.5" min="0" max="100" step="0.1">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Ежемесячный платёж (авто)</label>
+              <input class="form-input mono calc" id="f-monthly_payment" readonly style="font-size:16px;font-weight:600">
+              <span class="form-hint">Аннуитетный расчёт — автоматически</span>
+            </div>
+          </div>
+          <div class="tab-nav-buttons">
+            <button class="btn btn-outline" onclick="goPrevTab('deal')">&larr; Назад</button>
+            <button class="btn btn-primary" onclick="goNextTab('deal')">Далее &rarr;</button>
+          </div>
+        </div>
+
+        <!-- TAB 3: Income -->
+        <div class="tab-content" id="tab-income">
+          <div class="section-divider">Официальный доход</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Официальное трудоустройство</label>
+              <select class="form-input" id="f-has_official_employment">
+                <option value="">— выберите —</option>
+                <option value="да">Да</option>
+                <option value="нет">Нет</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Название работодателя</label>
+              <input class="form-input" id="f-employer_name" placeholder="ООО «Компания»">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Период (мес)</label>
+              <input class="form-input" type="number" id="f-salary_period_months" placeholder="6" min="1" step="1">
+              <span class="form-hint">За какой период указана ЗП</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Общая зарплата за период</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-total_salary" placeholder="0">
+            </div>
+          </div>
+          <div class="section-divider">Основная деятельность (если не офиц.)</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Вид деятельности</label>
+              <input class="form-input" id="f-main_activity" placeholder="Предприниматель, фрилансер и т.д.">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Период (мес)</label>
+              <input class="form-input" type="number" id="f-main_activity_period" placeholder="6" min="1" step="1">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Доход за период</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-main_activity_income" placeholder="0">
+            </div>
+          </div>
+          <div class="section-divider">Дополнительный доход</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Источник доп. дохода</label>
+              <input class="form-input" id="f-additional_income_source" placeholder="Аренда, подработка и т.д.">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Период (мес)</label>
+              <input class="form-input" type="number" id="f-additional_income_period" placeholder="6" min="1" step="1">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Доход за период</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-additional_income_total" placeholder="0">
+            </div>
+          </div>
+          <div class="section-divider">Прочий доход</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Источник прочего дохода</label>
+              <input class="form-input" id="f-other_income_source" placeholder="Пенсия, стипендия и т.д.">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Период (мес)</label>
+              <input class="form-input" type="number" id="f-other_income_period" placeholder="6" min="1" step="1">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Доход за период</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-other_income_total" placeholder="0">
+            </div>
+          </div>
+          <div class="section-divider">Итого</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Общий месячный доход (авто)</label>
+              <input class="form-input mono calc" id="f-total_monthly_income" readonly style="font-size:16px;font-weight:600">
+              <span class="form-hint">Сумма всех доходов / период — автоматически</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Тип имущества</label>
+              <input class="form-input" id="f-property_type" placeholder="Квартира, дом, авто и т.д.">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Описание имущества</label>
+              <textarea class="form-input" id="f-property_details" rows="2" placeholder="Подробности об имуществе клиента"></textarea>
+            </div>
+          </div>
+          <div class="tab-nav-buttons">
+            <button class="btn btn-outline" onclick="goPrevTab('income')">&larr; Назад</button>
+            <button class="btn btn-primary" onclick="goNextTab('income')">Далее &rarr;</button>
+          </div>
+        </div>
+
+        <!-- TAB 4: Credit history (individual) -->
+        <div class="tab-content" id="tab-credit">
+          <div class="section-divider">Текущие обязательства</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Наличие обязательств</label>
+              <select class="form-input" id="f-has_current_obligations">
+                <option value="">— выберите —</option>
+                <option value="есть">Есть</option>
+                <option value="нет">Нет</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Кол-во обязательств</label>
+              <input class="form-input" type="number" id="f-obligations_count" placeholder="0" min="0" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Общая сумма обязательств</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-total_obligations_amount" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ежемесячный платёж по обяз.</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-monthly_obligations_payment" placeholder="0">
+            </div>
+          </div>
+          <div class="section-divider">DTI (Долговая нагрузка)</div>
+          <div class="form-grid">
+            <div class="form-group full">
+              <div class="dti-block" id="dtiBlock">
+                <div>
+                  <div class="dti-label" id="dtiLabel">DTI — нет данных</div>
+                  <div class="dti-sub" id="dtiSub">Заполните доходы и условия сделки</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="dti-value" id="dtiValue">—</div>
+                  <div class="dti-sub" id="dtiThreshold"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="section-divider">Просрочки</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Закрытых обязательств</label>
+              <input class="form-input" type="number" id="f-closed_obligations_count" placeholder="0" min="0" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Макс. просрочка основной долг (дни)</label>
+              <input class="form-input" type="number" id="f-max_overdue_principal_days" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Сумма просрочки основной долг</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-max_overdue_principal_amount" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Макс. непрерыв. просрочка % (дни)</label>
+              <input class="form-input" type="number" id="f-max_continuous_overdue_percent_days" placeholder="0" min="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Сумма просрочки %</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-max_overdue_percent_amount" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Категория просрочки</label>
+              <select class="form-input" id="f-overdue_category">
+                <option value="">— выберите —</option>
+                <option value="до 30 дней">До 30 дней</option>
+                <option value="31-60">31-60 дней</option>
+                <option value="61-90">61-90 дней</option>
+                <option value="90+">90+ дней</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Дата последней просрочки</label>
+              <input class="form-input" type="date" id="f-last_overdue_date">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Результат проверки (авто)</label>
+              <input class="form-input calc" id="f-overdue_check_result" readonly>
+              <span class="form-hint">Определяется автоматически по категории</span>
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Причина просрочки</label>
+              <textarea class="form-input" id="f-overdue_reason" rows="2" placeholder="Пояснение клиента о причине просрочки"></textarea>
+            </div>
+          </div>
+          <div class="section-divider">Риск-грейд</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Риск-грейд</label>
+              <input type="text" id="f-risk_grade" class="form-input" placeholder="Напр.: E, E1, F2...">
+              <div id="riskGradeWarning" class="field-warning" style="display:none"></div>
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end">
+              <label class="checkbox-label">
+                <input type="checkbox" id="f-no_scoring_response"> Нет ответа от скоринга
+              </label>
+            </div>
+          </div>
+          <div class="tab-nav-buttons">
+            <button class="btn btn-outline" onclick="goPrevTab('credit')">&larr; Назад</button>
+            <div></div>
+          </div>
+        </div>
+
+        <!-- LEGAL ENTITY TAB 1: Company -->
+        <div class="tab-content" id="tab-le-company">
+          <div class="section-divider">Данные компании</div>
+          <div class="form-grid">
+            <div class="form-group full">
+              <label class="form-label">Наименование компании <span class="required">*</span></label>
+              <input class="form-input" id="f-company_name" placeholder="ООО «Компания»">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ИНН (14 цифр) <span class="required">*</span></label>
+              <input class="form-input mono" id="f-company_inn" placeholder="00000000000000" maxlength="14">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ОКЭД</label>
+              <input class="form-input" id="f-company_oked" placeholder="Код ОКЭД">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Юридический адрес</label>
+              <input class="form-input" id="f-company_legal_address" placeholder="Юридический адрес компании">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Фактический адрес</label>
+              <input class="form-input" id="f-company_actual_address" placeholder="Фактический адрес компании">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Телефон компании</label>
+              <input class="form-input mono" id="f-company_phone" placeholder="+998 71 000-00-00">
+            </div>
+          </div>
+          <div class="section-divider">Директор</div>
+          <div class="form-grid">
+            <div class="form-group full">
+              <label class="form-label">ФИО директора (латиница) <span class="required">*</span></label>
+              <input class="form-input mono" id="f-director_full_name" placeholder="IVANOV IVAN IVAN O'G'LI" style="font-size:14px">
+              <span class="form-hint">Только латиница — как в паспорте</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Телефон директора</label>
+              <input class="form-input mono" id="f-director_phone" placeholder="+998 90 000-00-00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Телефон родственника директора</label>
+              <input class="form-input mono" id="f-director_family_phone" placeholder="+998 90 000-00-00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Кем приходится</label>
+              <select class="form-input" id="f-director_family_relation">
+                <option value="">— выберите —</option>
+                <option value="Отец">Отец</option>
+                <option value="Мать">Мать</option>
+                <option value="Брат">Брат</option>
+                <option value="Сестра">Сестра</option>
+                <option value="Супруг(а)">Супруг(а)</option>
+                <option value="Другое">Другое</option>
+              </select>
+            </div>
+          </div>
+          <div class="section-divider">Контактное лицо</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">ФИО контактного лица</label>
+              <input class="form-input" id="f-contact_person_name" placeholder="ФИО">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Должность</label>
+              <select class="form-input" id="f-contact_person_role">
+                <option value="">— выберите —</option>
+                <option value="Бухгалтер">Бухгалтер</option>
+                <option value="Зам. директора">Зам. директора</option>
+                <option value="Другое">Другое</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Телефон контактного лица</label>
+              <input class="form-input mono" id="f-contact_person_phone" placeholder="+998 90 000-00-00">
+            </div>
+            <div class="form-group full">
+              <div class="consent-row">
+                <input type="checkbox" id="f-le-consent_personal_data">
+                <label for="f-le-consent_personal_data">
+                  Согласие на обработку персональных данных <span class="required">*</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="tab-nav-buttons">
+            <div></div>
+            <button class="btn btn-primary" onclick="goNextTab('le-company')">Далее &rarr;</button>
+          </div>
+        </div>
+
+        <!-- LEGAL ENTITY TAB 3: Income -->
+        <div class="tab-content" id="tab-le-income">
+          <div class="section-divider">Доход компании</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Период (мес)</label>
+              <input class="form-input" type="number" id="f-company_revenue_period" placeholder="6" min="1" step="1">
+              <span class="form-hint">За какой период указана выручка</span>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Выручка за период</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-company_revenue_total" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Чистая прибыль за период</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-company_net_profit" placeholder="0">
+            </div>
+          </div>
+          <div class="section-divider">Доход директора</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Период (мес)</label>
+              <input class="form-input" type="number" id="f-director_income_period" placeholder="6" min="1" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Доход директора за период</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-director_income_total" placeholder="0">
+            </div>
+          </div>
+          <div class="section-divider">Итого</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Общий месячный доход (авто)</label>
+              <input class="form-input mono calc" id="f-le-total_monthly_income" readonly style="font-size:16px;font-weight:600">
+              <span class="form-hint">Выручка/период + Доход директора/период</span>
+            </div>
+          </div>
+          <div class="tab-nav-buttons">
+            <button class="btn btn-outline" onclick="goPrevTab('le-income')">&larr; Назад</button>
+            <button class="btn btn-primary" onclick="goNextTab('le-income')">Далее &rarr;</button>
+          </div>
+        </div>
+
+        <!-- LEGAL ENTITY TAB 4: Credit history -->
+        <div class="tab-content" id="tab-le-credit">
+          <div class="section-divider">Кредитная история компании</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Наличие обязательств</label>
+              <select class="form-input" id="f-company_has_obligations">
+                <option value="">— выберите —</option>
+                <option value="есть">Есть</option>
+                <option value="нет">Нет</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Кол-во обязательств</label>
+              <input class="form-input" type="number" id="f-company_obligations_count" placeholder="0" min="0" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Общая сумма обязательств</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-company_obligations_amount" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ежемесячный платёж</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-company_monthly_payment" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Категория просрочки</label>
+              <select class="form-input" id="f-company_overdue_category">
+                <option value="">— выберите —</option>
+                <option value="до 30 дней">До 30 дней</option>
+                <option value="31-60">31-60 дней</option>
+                <option value="61-90">61-90 дней</option>
+                <option value="90+">90+ дней</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Дата последней просрочки</label>
+              <input class="form-input" type="date" id="f-company_last_overdue_date">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Причина просрочки</label>
+              <textarea class="form-input" id="f-company_overdue_reason" rows="2" placeholder="Пояснение"></textarea>
+            </div>
+          </div>
+          <div class="section-divider">Кредитная история директора</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Наличие обязательств</label>
+              <select class="form-input" id="f-director_has_obligations">
+                <option value="">— выберите —</option>
+                <option value="есть">Есть</option>
+                <option value="нет">Нет</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Кол-во обязательств</label>
+              <input class="form-input" type="number" id="f-director_obligations_count" placeholder="0" min="0" step="1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Общая сумма обязательств</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-director_obligations_amount" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ежемесячный платёж</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-director_monthly_payment" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Категория просрочки</label>
+              <select class="form-input" id="f-director_overdue_category">
+                <option value="">— выберите —</option>
+                <option value="до 30 дней">До 30 дней</option>
+                <option value="31-60">31-60 дней</option>
+                <option value="61-90">61-90 дней</option>
+                <option value="90+">90+ дней</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Дата последней просрочки</label>
+              <input class="form-input" type="date" id="f-director_last_overdue_date">
+            </div>
+            <div class="form-group full">
+              <label class="form-label">Причина просрочки</label>
+              <textarea class="form-input" id="f-director_overdue_reason" rows="2" placeholder="Пояснение"></textarea>
+            </div>
+          </div>
+          <div class="section-divider">DTI (Долговая нагрузка)</div>
+          <div class="form-grid">
+            <div class="form-group full">
+              <div class="dti-block" id="leDtiBlock">
+                <div>
+                  <div class="dti-label" id="leDtiLabel">DTI — нет данных</div>
+                  <div class="dti-sub" id="leDtiSub">Заполните доходы и условия сделки</div>
+                </div>
+                <div style="text-align:right">
+                  <div class="dti-value" id="leDtiValue">—</div>
+                  <div class="dti-sub" id="leDtiThreshold"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="section-divider">Риск-грейд</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Риск-грейд</label>
+              <input type="text" id="f-le-risk_grade" class="form-input" placeholder="Напр.: E, E1, F2...">
+              <div id="leRiskGradeWarning" class="field-warning" style="display:none"></div>
+            </div>
+            <div class="form-group" style="display:flex;align-items:flex-end">
+              <label class="checkbox-label">
+                <input type="checkbox" id="f-le-no_scoring_response"> Нет ответа от скоринга
+              </label>
+            </div>
+          </div>
+          <div class="tab-nav-buttons">
+            <button class="btn btn-outline" onclick="goPrevTab('le-credit')">&larr; Назад</button>
+            <button class="btn btn-primary" onclick="goNextTab('le-credit')">Далее &rarr;</button>
+          </div>
+        </div>
+
+        <!-- LEGAL ENTITY TAB 5: Guarantor -->
+        <div class="tab-content" id="tab-le-guarantor">
+          <div class="section-divider">Данные поручителя</div>
+          <div class="form-grid">
+            <div class="form-group full">
+              <label class="form-label">ФИО поручителя (латиница)</label>
+              <input class="form-input mono" id="f-guarantor_full_name" placeholder="PETROV PETR PETR O'G'LI" style="font-size:14px">
+            </div>
+            <div class="form-group">
+              <label class="form-label">ПИНФЛ поручителя</label>
+              <input class="form-input mono" id="f-guarantor_pinfl" placeholder="00000000000000" maxlength="14">
+              <div class="field-error" id="guarantor-pinfl-error" style="display:none;color:var(--red);font-size:12px;margin-top:4px"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Паспорт поручителя</label>
+              <input class="form-input mono" id="f-guarantor_passport" placeholder="AA 0000000" maxlength="10">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Телефон поручителя</label>
+              <input class="form-input mono" id="f-guarantor_phone" placeholder="+998 90 000-00-00">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ежемесячный доход</label>
+              <input class="form-input mono" type="text" inputmode="numeric" id="f-guarantor_monthly_income" placeholder="0">
+            </div>
+          </div>
+          <div class="section-divider">Кредитная история поручителя</div>
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Категория просрочки</label>
+              <select class="form-input" id="f-guarantor_overdue_category">
+                <option value="">— выберите —</option>
+                <option value="до 30 дней">До 30 дней</option>
+                <option value="31-60">31-60 дней</option>
+                <option value="61-90">61-90 дней</option>
+                <option value="90+">90+ дней</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Дата последней просрочки</label>
+              <input class="form-input" type="date" id="f-guarantor_last_overdue_date">
+            </div>
+          </div>
+          <div class="tab-nav-buttons">
+            <button class="btn btn-outline" onclick="goPrevTab('le-guarantor')">&larr; Назад</button>
+            <div></div>
+          </div>
+        </div>
+
+      </div>
+      </div>
+      <div class="view-anketa-sidebar" id="formConclusionPanel">
+        <!-- Rendered by JS -->
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEW ANKETA PAGE -->
+  <div class="page" id="page-view-anketa">
+    <div class="topbar">
+      <div>
+        <div class="topbar-back" onclick="navigate('ankety')">&#8592; Анкеты / <span id="viewAnketaId"></span></div>
+        <div class="page-title" id="viewAnketaName">Анкета</div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline btn-sm" onclick="printAnketa()">Печать</button>
+        <span class="status-badge" id="viewAnketaStatus"></span>
+      </div>
+    </div>
+    <div class="content">
+      <!-- Print header + body (visible only when printing) -->
+      <div class="print-header" id="printHeader">
+        <div class="print-header-info">
+          <div class="print-header-title" id="printTitle">Анкета</div>
+          <div class="print-header-meta" id="printMeta"></div>
+        </div>
+        <div class="print-header-qr" id="printQr"></div>
+      </div>
+      <div id="printFullBody" style="display:none"></div>
+
+      <div class="duplicate-banner" id="duplicateBanner" style="display:none">
+        <div class="duplicate-banner-icon">!</div>
+        <div class="duplicate-banner-text">
+          <strong>Обнаружены дубликаты</strong>
+          <div id="duplicateBannerList"></div>
+        </div>
+      </div>
+      <div class="view-anketa-layout">
+        <div class="view-anketa-main">
+          <div class="card">
+            <div class="tabs">
+              <div class="tab active" data-vtab="v-personal" onclick="switchViewTab('v-personal')">1. Личные данные</div>
+              <div class="tab" data-vtab="v-deal" onclick="switchViewTab('v-deal')">2. Условия сделки</div>
+              <div class="tab" data-vtab="v-income" onclick="switchViewTab('v-income')">3. Доходы</div>
+              <div class="tab" data-vtab="v-credit" onclick="switchViewTab('v-credit')">4. Кред. история</div>
+              <div class="tab" data-vtab="v-history" onclick="switchViewTab('v-history')">История</div>
+            </div>
+
+            <!-- View tabs - content rendered by JS -->
+            <div class="tab-content active" id="tab-v-personal"><div class="form-grid" id="view-personal"></div></div>
+            <div class="tab-content" id="tab-v-deal"><div class="form-grid" id="view-deal"></div></div>
+            <div class="tab-content" id="tab-v-income"><div class="form-grid" id="view-income"></div></div>
+            <div class="tab-content" id="tab-v-credit"><div class="form-grid" id="view-credit"></div></div>
+            <div class="tab-content" id="tab-v-history">
+              <div style="padding:16px 24px 0">
+                <div style="display:flex;gap:8px;margin-bottom:12px">
+                  <button class="period-btn active" id="subtabChanges" onclick="switchHistorySubtab('changes')">Изменения</button>
+                  <button class="period-btn" id="subtabViews" onclick="switchHistorySubtab('views')">Просмотры</button>
+                </div>
+              </div>
+              <div id="historyChanges">
+                <div style="display:flex;gap:8px;padding:0 24px 12px;flex-wrap:wrap" id="historyFilters">
+                  <input class="form-input" style="width:130px;padding:5px 8px;font-size:12px" type="date" id="histFilterFrom" placeholder="С" onchange="applyHistoryFilters()">
+                  <input class="form-input" style="width:130px;padding:5px 8px;font-size:12px" type="date" id="histFilterTo" placeholder="По" onchange="applyHistoryFilters()">
+                  <select class="form-input" style="width:150px;padding:5px 8px;font-size:12px" id="histFilterUser" onchange="applyHistoryFilters()">
+                    <option value="">Все пользователи</option>
+                  </select>
+                  <select class="form-input" style="width:150px;padding:5px 8px;font-size:12px" id="histFilterField" onchange="applyHistoryFilters()">
+                    <option value="">Все поля</option>
+                  </select>
+                  <input class="form-input" style="width:150px;padding:5px 8px;font-size:12px" id="histFilterSearch" placeholder="Поиск..." oninput="applyHistoryFilters()">
+                  <button class="btn btn-sm btn-outline" onclick="resetHistoryFilters()">Сброс</button>
+                </div>
+                <div id="view-history" style="padding:0 24px 24px"></div>
+              </div>
+              <div id="historyViews" style="display:none;padding:24px"></div>
+            </div>
+          </div>
+        </div>
+        <div class="view-anketa-sidebar" id="conclusionPanel">
+          <!-- Rendered by JS -->
         </div>
       </div>
     </div>
   </div>
 
-  <!-- APPROVALS PAGE (placeholder) -->
+  <!-- APPROVALS PAGE -->
   <div class="page" id="page-approvals">
     <div class="topbar">
       <div class="page-title">Запросы на правку</div>
+      <div class="topbar-actions">
+        <select id="editRequestsFilter" class="topbar-select" onchange="loadEditRequests()">
+          <option value="pending">Ожидают</option>
+          <option value="approved">Одобренные</option>
+          <option value="rejected">Отклонённые</option>
+          <option value="">Все</option>
+        </select>
+      </div>
     </div>
     <div class="content">
-      <div class="card">
-        <div class="empty-state">
-          <div class="empty-state-icon">✅</div>
-          <div class="empty-state-text">Активных запросов нет</div>
-          <div style="margin-top:4px;font-size:12px;color:var(--text-light)">Запросы на правку появятся здесь</div>
+      <div id="editRequestsContainer"></div>
+    </div>
+  </div>
+
+  <!-- CALCULATOR PAGE -->
+  <div class="page" id="page-calculator">
+    <div class="topbar">
+      <div class="page-title">Калькулятор финансовой аренды</div>
+      <div class="topbar-actions">
+        <button class="btn btn-outline" onclick="resetLeaseCalc()">Сбросить</button>
+      </div>
+    </div>
+    <div class="content">
+
+      <div class="calc-type-toggle">
+        <button class="calc-type-btn active" id="calcTypePerv" onclick="setCalcType('pervichka')">Первичка</button>
+        <button class="calc-type-btn" id="calcTypeVtor" onclick="setCalcType('vtorichka')">Вторичка</button>
+      </div>
+
+      <div class="calc-layout">
+
+        <!-- LEFT: Input -->
+        <div>
+          <div class="card">
+            <div class="card-header" style="padding:16px 20px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px">
+              <div style="width:30px;height:30px;border-radius:8px;background:var(--purple-pale);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">📋</div>
+              <div><div style="font-size:13.5px;font-weight:700">Данные клиента</div><div style="font-size:11px;color:var(--text-light);margin-top:1px">Введите — всё рассчитается автоматически</div></div>
+            </div>
+            <div style="padding:16px 20px;display:flex;flex-direction:column;gap:13px">
+
+              <div class="calc-field">
+                <label class="calc-field-label">Деньги на руках (сум)<span class="calc-field-hint">что есть у клиента</span></label>
+                <input type="number" class="calc-field-input" id="lc-cash" value="30000000" oninput="runLeaseCalc()">
+                <div class="calc-info-box">
+                  <strong>Первичка:</strong> Деньги − Фин.риски − ГАИ = ПВ<br>
+                  <strong>Вторичка:</strong> Деньги − ГАИ = ПВ <span style="opacity:.7">(фин.риски войдут в тело кредита)</span>
+                </div>
+              </div>
+
+              <div class="calc-field">
+                <label class="calc-field-label">Доход клиента (сум/мес)<span class="calc-field-hint">для DTI</span></label>
+                <input type="number" class="calc-field-input" id="lc-income" value="5000000" oninput="runLeaseCalc()">
+              </div>
+
+              <div class="calc-field">
+                <label class="calc-field-label">Текущие обязательства (сум/мес)<span class="calc-field-hint">кредиты и др.</span></label>
+                <input type="number" class="calc-field-input" id="lc-obligations" value="0" oninput="runLeaseCalc()">
+              </div>
+
+              <div class="calc-divider"></div>
+
+              <div class="calc-field">
+                <label class="calc-field-label">Стоимость авто (сум)</label>
+                <input type="number" class="calc-field-input" id="lc-car_price" value="266700000" oninput="runLeaseCalc()">
+              </div>
+
+              <div class="calc-field">
+                <label class="calc-field-label">Предпочтительный срок</label>
+                <select class="calc-field-input" id="lc-pref_years" onchange="runLeaseCalc()">
+                  <option value="0">Подобрать автоматически</option>
+                  <option value="5">5 лет (60 мес)</option>
+                  <option value="4">4 года (48 мес)</option>
+                  <option value="3">3 года (36 мес)</option>
+                  <option value="2">2 года (24 мес)</option>
+                  <option value="1">1 год (12 мес)</option>
+                </select>
+              </div>
+
+              <div class="calc-divider"></div>
+
+              <div class="calc-field">
+                <label class="calc-field-label">Ставка PMT (годовая)<span class="calc-field-hint">для расчёта платежа</span></label>
+                <input type="number" class="calc-field-input" id="lc-pmt_rate" value="30.5" step="0.1" oninput="runLeaseCalc()">
+                <div class="calc-rate-note">
+                  <strong>30.5%</strong> — реальная ставка для расчёта аннуитетного платежа.<br>
+                  <strong>19.2%</strong> — маркетинговая наценка: Тело x 19.2% x лет (для отображения клиенту).
+                </div>
+              </div>
+
+              <div class="calc-field">
+                <label class="calc-field-label">Наценка % (годовая)<span class="calc-field-hint">для отображения</span></label>
+                <input type="number" class="calc-field-input" id="lc-markup_rate" value="19.2" step="0.1" oninput="runLeaseCalc()">
+              </div>
+
+              <div class="calc-field">
+                <label class="calc-field-label">Мин. ПВ % (решает андеррайтер)<span class="calc-field-hint">0 = без минимума</span></label>
+                <input type="number" class="calc-field-input" id="lc-min_pv_pct" value="5" step="1" min="0" max="100" oninput="runLeaseCalc()">
+              </div>
+
+              <div class="calc-field-row">
+                <div class="calc-field">
+                  <label class="calc-field-label">Фин.риски %<span class="calc-field-hint" id="lc-fin_hint">4% первичка</span></label>
+                  <input type="number" class="calc-field-input" id="lc-fin_risk_pct" value="4" step="0.5" oninput="runLeaseCalc()">
+                </div>
+                <div class="calc-field">
+                  <label class="calc-field-label">ГАИ + Нот.<span class="calc-field-hint" id="lc-gai_hint">3.7 млн</span></label>
+                  <input type="number" class="calc-field-input" id="lc-gai" value="3700000" oninput="runLeaseCalc()">
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT: Results -->
+        <div class="calc-results-col">
+
+          <div class="calc-warn" id="lc-warn">
+            <span id="lc-warn-text"></span>
+          </div>
+
+          <!-- Max car card -->
+          <div class="calc-maxcar" id="lc-maxcar">
+            <div class="calc-maxcar-header">
+              <div class="calc-maxcar-hicon">🎯</div>
+              <div>
+                <div class="calc-maxcar-htitle">Максимальная стоимость авто при DTI ≤ 50%</div>
+                <div class="calc-maxcar-hsub">При текущих деньгах на руках и доходе клиента</div>
+              </div>
+            </div>
+            <div class="calc-maxcar-body">
+              <div class="calc-maxcar-main">
+                <div class="calc-maxcar-item accent">
+                  <div class="calc-maxcar-label">Макс. стоимость авто</div>
+                  <div class="calc-maxcar-val" id="lc-mc_price">—</div>
+                  <div class="calc-maxcar-sub" id="lc-mc_price_sub"></div>
+                </div>
+                <div class="calc-maxcar-item">
+                  <div class="calc-maxcar-label">ПВ при этом</div>
+                  <div class="calc-maxcar-val" id="lc-mc_pv">—</div>
+                  <div class="calc-maxcar-sub" id="lc-mc_pv_sub"></div>
+                </div>
+                <div class="calc-maxcar-item">
+                  <div class="calc-maxcar-label">Платёж/мес (= DTI 50%)</div>
+                  <div class="calc-maxcar-val" id="lc-mc_payment">—</div>
+                  <div class="calc-maxcar-sub" id="lc-mc_payment_sub"></div>
+                </div>
+              </div>
+              <div id="lc-mc_all_terms"></div>
+              <div class="calc-dti-bar-wrap" id="lc-mc_dti_bar_wrap">
+                <div class="calc-dti-bar-labels">
+                  <span>Текущее авто — DTI <span id="lc-mc_current_dti">—</span></span>
+                  <span>Порог 50%</span>
+                </div>
+                <div class="calc-dti-bar-track">
+                  <div class="calc-dti-bar-fill" id="lc-mc_dti_bar" style="width:0%"></div>
+                </div>
+              </div>
+              <div class="calc-maxcar-note" id="lc-mc_note"></div>
+            </div>
+          </div>
+
+          <!-- Optimal variant -->
+          <div class="calc-optimal">
+            <div class="calc-opt-title">Оптимальный вариант</div>
+            <div class="calc-opt-grid">
+              <div class="calc-opt-item">
+                <div class="calc-opt-label">Ежемесячный платёж</div>
+                <div class="calc-opt-val big" id="lc-opt_monthly">—</div>
+                <div class="calc-opt-sub" id="lc-opt_monthly_sub"></div>
+              </div>
+              <div class="calc-opt-item">
+                <div class="calc-opt-label">Срок</div>
+                <div class="calc-opt-val" id="lc-opt_term">—</div>
+                <div class="calc-opt-sub" id="lc-opt_pv_sub"></div>
+              </div>
+              <div class="calc-opt-item">
+                <div class="calc-opt-label">Тело долга</div>
+                <div class="calc-opt-val" id="lc-opt_body">—</div>
+                <div class="calc-opt-sub">финансирует FD</div>
+              </div>
+              <div class="calc-opt-item">
+                <div class="calc-opt-label">Нач. расходы клиента</div>
+                <div class="calc-opt-val" id="lc-opt_first">—</div>
+                <div class="calc-opt-sub" id="lc-opt_first_sub"></div>
+              </div>
+            </div>
+            <div class="calc-opt-status">
+              <div>
+                <div class="calc-opt-status-text" id="lc-opt_status_title">—</div>
+                <div style="font-size:11px;opacity:.75;margin-top:2px" id="lc-opt_status_sub"></div>
+              </div>
+              <div class="calc-opt-dti" id="lc-opt_dti">—</div>
+            </div>
+          </div>
+
+          <!-- Variants table -->
+          <div class="card">
+            <div class="card-header" style="padding:16px 20px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px">
+              <div style="width:30px;height:30px;border-radius:8px;background:var(--purple-pale);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">📊</div>
+              <div>
+                <div style="font-size:13.5px;font-weight:700">Все варианты по срокам</div>
+                <div style="font-size:11px;color:var(--text-light);margin-top:1px">Фиолетовый = оптимальный</div>
+              </div>
+            </div>
+            <table class="calc-table">
+              <thead><tr>
+                <th>Срок</th>
+                <th>ПВ / %</th>
+                <th>Платёж/мес</th>
+                <th>Наценка итого</th>
+                <th>DTI</th>
+                <th>Статус</th>
+              </tr></thead>
+              <tbody id="lc-variants_body"></tbody>
+            </table>
+          </div>
+
+          <!-- Steps -->
+          <div class="card">
+            <div class="card-header" style="padding:16px 20px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:9px">
+              <div style="width:30px;height:30px;border-radius:8px;background:var(--purple-pale);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">📖</div>
+              <div>
+                <div style="font-size:13.5px;font-weight:700">Как считается оптимальный вариант</div>
+                <div style="font-size:11px;color:var(--text-light);margin-top:1px">Пошаговое объяснение каждой цифры</div>
+              </div>
+            </div>
+            <div class="calc-steps" id="lc-steps"></div>
+          </div>
+
         </div>
       </div>
     </div>
   </div>
 
-  <!-- CALCULATOR PAGE (placeholder) -->
-  <div class="page" id="page-calculator">
+  <!-- RULES PAGE -->
+  <div class="page" id="page-rules">
     <div class="topbar">
-      <div class="page-title">Калькулятор андеррайтера</div>
+      <div class="page-title">Правила андеррайтинга</div>
+    </div>
+    <div class="content">
+      <div id="rulesContainer"></div>
+    </div>
+  </div>
+
+  <!-- RISK RULES PAGE -->
+  <div class="page" id="page-risk-rules">
+    <div class="topbar">
+      <div class="page-title">Риск-правила</div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="showAddRiskRuleModal()">+ Добавить</button>
+      </div>
+    </div>
+    <div class="content">
+      <div id="riskRulesContainer"></div>
+    </div>
+  </div>
+
+  <!-- ROLES PAGE -->
+  <div class="page" id="page-roles">
+    <div class="topbar">
+      <div class="page-title">Должности</div>
+      <div class="topbar-actions">
+        <button class="btn btn-primary" onclick="openCreateRoleModal()">+ Новая должность</button>
+      </div>
     </div>
     <div class="content">
       <div class="card">
-        <div class="empty-state">
-          <div class="empty-state-icon">🧮</div>
-          <div class="empty-state-text">Калькулятор — Этап 2</div>
-          <div style="margin-top:4px;font-size:12px;color:var(--text-light)">Будет реализован в следующем этапе</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Название</th>
+              <th>Создание анкет</th>
+              <th>Редактиров.</th>
+              <th>Просмотр всех</th>
+              <th>Заключение</th>
+              <th>Удаление</th>
+              <th>Управл. польз.</th>
+              <th>Аналитика</th>
+              <th>Excel</th>
+              <th>Правила</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody id="rolesTableBody">
+            <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- EMPLOYEE STATS PAGE -->
+  <div class="page" id="page-employee-stats">
+    <div class="topbar">
+      <div class="page-title">Аналитика сотрудников</div>
+      <div class="topbar-actions">
+        <div class="period-filter">
+          <button class="period-btn" onclick="setEmpStatsPeriod('week')">Неделя</button>
+          <button class="period-btn active" onclick="setEmpStatsPeriod('month')">Месяц</button>
+          <button class="period-btn" onclick="setEmpStatsPeriod('custom')">Период</button>
+          <div class="period-dates" id="empStatsPeriodDates" style="display:none">
+            <input type="date" id="empStatsFrom">
+            <span style="color:var(--text-light)">—</span>
+            <input type="date" id="empStatsTo">
+            <button class="btn btn-sm btn-primary" onclick="applyEmpStatsCustomPeriod()">Применить</button>
+          </div>
         </div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Сотрудник</th>
+              <th>Всего</th>
+              <th>Одобрено</th>
+              <th>Отказано</th>
+              <th>На рассмотр.</th>
+              <th>% одобрения</th>
+              <th>Ср. DTI</th>
+              <th>Ср. время (ч)</th>
+            </tr>
+          </thead>
+          <tbody id="empStatsTableBody">
+            <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -185,6 +1362,14 @@
     <div class="topbar">
       <div class="page-title">Пользователи</div>
       <div class="topbar-actions">
+        <button class="btn btn-outline" onclick="openTelegramSettingsModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2L9 14"/><path d="M21 2l-7 20-4-9-9-4z"/></svg>
+          Telegram
+        </button>
+        <button class="btn btn-outline" onclick="openExcelExportModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Скачать Excel
+        </button>
         <button class="btn btn-primary" onclick="openCreateUserModal()">+ Новый пользователь</button>
       </div>
     </div>
@@ -209,6 +1394,26 @@
     </div>
   </div>
 
+  <!-- EDIT REQUEST MODAL -->
+  <div class="modal-overlay" id="editRequestModal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Запрос на редактирование</div>
+        <button class="modal-close" onclick="closeEditRequestModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Причина</label>
+          <textarea id="editRequestReason" class="form-input" rows="3" placeholder="Укажите причину для редактирования анкеты..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeEditRequestModal()">Отмена</button>
+        <button class="btn btn-primary" onclick="submitEditRequest()">Отправить</button>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- CREATE USER MODAL -->
@@ -229,10 +1434,9 @@
         <input class="form-input" type="email" id="newEmail" placeholder="example@mail.com">
       </div>
       <div class="form-group">
-        <label class="form-label">Роль <span class="required">*</span></label>
-        <select class="form-input" id="newRole">
-          <option value="inspector">Инспектор / Андеррайтер</option>
-          <option value="admin">Администратор</option>
+        <label class="form-label">Должность <span class="required">*</span></label>
+        <select class="form-input" id="newRoleId">
+          <option value="">— загрузка —</option>
         </select>
       </div>
       <div style="font-size:13px;color:var(--text-light);background:var(--bg);padding:10px 14px;border-radius:8px;margin-top:4px">
@@ -268,10 +1472,9 @@
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Роль <span class="required">*</span></label>
-        <select class="form-input" id="editRole">
-          <option value="inspector">Инспектор / Андеррайтер</option>
-          <option value="admin">Администратор</option>
+        <label class="form-label">Должность <span class="required">*</span></label>
+        <select class="form-input" id="editRoleId">
+          <option value="">— загрузка —</option>
         </select>
       </div>
       <div class="form-group">
@@ -279,6 +1482,11 @@
           <input type="checkbox" id="editIsActive" style="width:16px;height:16px;accent-color:var(--purple)">
           Аккаунт активен
         </label>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Telegram Chat ID</label>
+        <input class="form-input mono" id="editTelegramChatId" placeholder="Напр.: 123456789" style="font-size:12px">
+        <span class="form-hint">Для Telegram-уведомлений</span>
       </div>
     </div>
     <div class="modal-footer">
@@ -306,6 +1514,173 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeCredentialsModal()">Готово</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE ANKETA MODAL -->
+<div class="modal-overlay" id="deleteAnketaModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Удаление анкеты</div>
+      <button class="modal-close" onclick="closeDeleteAnketaModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="delete-anketa-warning">
+        Вы собираетесь удалить анкету <strong id="deleteAnketaLabel"></strong>. Это действие нельзя отменить.
+      </div>
+      <input type="hidden" id="deleteAnketaId">
+      <div class="form-group">
+        <label class="form-label">Причина удаления <span class="required">*</span></label>
+        <textarea class="form-input" id="deleteAnketaReason" rows="3" placeholder="Укажите причину удаления анкеты"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeDeleteAnketaModal()">Отмена</button>
+      <button class="btn btn-danger" onclick="confirmDeleteAnketa()" id="confirmDeleteBtn">Удалить</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXCEL EXPORT MODAL -->
+<div class="modal-overlay" id="excelExportModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Скачать Excel</div>
+      <button class="modal-close" onclick="closeExcelExportModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="font-size:13px;color:var(--text-light);margin-bottom:12px">Выберите период для выгрузки. Файл будет содержать два листа: физические и юридические лица.</div>
+      <div class="form-group">
+        <label class="form-label">Дата от</label>
+        <input class="form-input" type="date" id="excelDateFrom">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Дата до</label>
+        <input class="form-input" type="date" id="excelDateTo">
+      </div>
+      <div style="font-size:12px;color:var(--text-light);margin-top:4px">Оставьте пустыми для выгрузки всех данных</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeExcelExportModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="downloadExcel()" id="downloadExcelBtn">Скачать</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD RISK RULE MODAL -->
+<div class="modal-overlay" id="addRiskRuleModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Новое риск-правило</div>
+      <button class="modal-close" onclick="closeAddRiskRuleModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="addRiskRuleError" class="login-error" style="margin-bottom:16px"></div>
+      <div class="form-group">
+        <label class="form-label">Категория (грейд) <span class="required">*</span></label>
+        <input class="form-input" id="newRiskRuleCategory" placeholder="Напр.: G, G1, H...">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Минимальный ПВ % <span class="required">*</span></label>
+        <input class="form-input" type="number" id="newRiskRuleMinPv" value="20" min="0" step="0.1">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeAddRiskRuleModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="createRiskRule()" id="createRiskRuleBtn">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE ROLE MODAL -->
+<div class="modal-overlay" id="createRoleModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Новая должность</div>
+      <button class="modal-close" onclick="closeCreateRoleModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="createRoleError" class="login-error" style="margin-bottom:16px"></div>
+      <div class="form-group">
+        <label class="form-label">Название <span class="required">*</span></label>
+        <input class="form-input" id="newRoleName" placeholder="Напр.: Наблюдатель">
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="margin-bottom:8px">Права доступа</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_create"> Создание анкет</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_edit"> Редактирование</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_view_all"> Просмотр всех</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_conclude"> Заключение</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_delete"> Удаление анкет</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_user_manage"> Управл. пользователями</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_analytics_view"> Аналитика</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_export_excel"> Экспорт Excel</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_rules_manage"> Управл. правилами</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeCreateRoleModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="createRole()" id="createRoleBtn">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDIT ROLE MODAL -->
+<div class="modal-overlay" id="editRoleModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <div class="modal-title">Редактировать должность</div>
+      <button class="modal-close" onclick="closeEditRoleModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div id="editRoleError" class="login-error" style="margin-bottom:16px"></div>
+      <input type="hidden" id="editRoleId">
+      <div class="form-group">
+        <label class="form-label">Название <span class="required">*</span></label>
+        <input class="form-input" id="editRoleName">
+      </div>
+      <div class="form-group">
+        <label class="form-label" style="margin-bottom:8px">Права доступа</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_create"> Создание анкет</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_edit"> Редактирование</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_view_all"> Просмотр всех</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_conclude"> Заключение</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_delete"> Удаление анкет</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_user_manage"> Управл. пользователями</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_analytics_view"> Аналитика</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_export_excel"> Экспорт Excel</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_rules_manage"> Управл. правилами</label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeEditRoleModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveRole()" id="saveRoleBtn">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- TELEGRAM SETTINGS MODAL -->
+<div class="modal-overlay" id="telegramSettingsModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <div class="modal-title">Настройки Telegram</div>
+      <button class="modal-close" onclick="closeTelegramSettingsModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Bot Token</label>
+        <input class="form-input mono" id="telegramBotToken" placeholder="123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11" style="font-size:12px">
+        <span class="form-hint">Получите токен у @BotFather в Telegram</span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeTelegramSettingsModal()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveTelegramSettings()">Сохранить</button>
     </div>
   </div>
 </div>
