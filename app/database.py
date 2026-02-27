@@ -4,7 +4,14 @@ from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./underwriting.db")
 
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+# PostgreSQL on Railway may use "postgres://" — SQLAlchemy needs "postgresql://"
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+_is_sqlite = DATABASE_URL.startswith("sqlite")
+_connect_args = {"check_same_thread": False} if _is_sqlite else {}
+
+engine = create_engine(DATABASE_URL, connect_args=_connect_args)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -302,9 +309,9 @@ def init_db():
         ("decision", "VARCHAR(30)"),
         ("conclusion_comment", "TEXT"),
         ("concluded_by", "INTEGER REFERENCES users(id)"),
-        ("concluded_at", "DATETIME"),
+        ("concluded_at", "TIMESTAMP"),
         ("pinfl_hash", "VARCHAR(64)"),
-        ("deleted_at", "DATETIME"),
+        ("deleted_at", "TIMESTAMP"),
         ("deleted_by", "INTEGER REFERENCES users(id)"),
         ("deletion_reason", "TEXT"),
         ("auto_decision", "VARCHAR(30)"),
@@ -359,29 +366,29 @@ def init_db():
         ("guarantor_last_overdue_date", "DATE"),
         # Risk grade & final PV
         ("risk_grade", "VARCHAR(50)"),
-        ("no_scoring_response", "BOOLEAN DEFAULT 0"),
+        ("no_scoring_response", "BOOLEAN DEFAULT FALSE"),
         ("final_pv", "FLOAT"),
     ]
-    with engine.connect() as conn:
-        for col_name, col_type in new_columns:
-            try:
-                conn.execute(text(f"ALTER TABLE anketas ADD COLUMN {col_name} {col_type}"))
-                conn.commit()
-            except Exception:
-                conn.rollback()
+    def _add_columns(table, columns):
+        with engine.connect() as conn:
+            for col_name, col_type in columns:
+                try:
+                    if _is_sqlite:
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"))
+                    else:
+                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+
+    _add_columns("anketas", new_columns)
 
     # Migration: users table new columns
     user_new_columns = [
         ("role_id", "INTEGER REFERENCES roles(id)"),
         ("telegram_chat_id", "VARCHAR(50)"),
     ]
-    with engine.connect() as conn:
-        for col_name, col_type in user_new_columns:
-            try:
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
-                conn.commit()
-            except Exception:
-                conn.rollback()
+    _add_columns("users", user_new_columns)
 
     db = SessionLocal()
     try:
