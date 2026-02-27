@@ -369,26 +369,29 @@ def init_db():
         ("no_scoring_response", "BOOLEAN DEFAULT FALSE"),
         ("final_pv", "FLOAT"),
     ]
-    def _add_columns(table, columns):
+    # SQLite-only migrations: add columns that were added after initial release.
+    # For PostgreSQL, create_all() already creates all columns from the model.
+    if _is_sqlite:
         with engine.connect() as conn:
-            for col_name, col_type in columns:
+            for col_name, col_type in new_columns:
                 try:
-                    if _is_sqlite:
-                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"))
-                    else:
-                        conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"))
+                    conn.execute(text(f"ALTER TABLE anketas ADD COLUMN {col_name} {col_type}"))
                     conn.commit()
                 except Exception:
                     conn.rollback()
 
-    _add_columns("anketas", new_columns)
-
-    # Migration: users table new columns
-    user_new_columns = [
-        ("role_id", "INTEGER REFERENCES roles(id)"),
-        ("telegram_chat_id", "VARCHAR(50)"),
-    ]
-    _add_columns("users", user_new_columns)
+        # Migration: users table new columns
+        user_new_columns = [
+            ("role_id", "INTEGER REFERENCES roles(id)"),
+            ("telegram_chat_id", "VARCHAR(50)"),
+        ]
+        with engine.connect() as conn:
+            for col_name, col_type in user_new_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
 
     db = SessionLocal()
     try:

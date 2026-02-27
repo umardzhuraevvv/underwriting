@@ -10,7 +10,12 @@ from app.routers import auth, admin, anketa
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    import traceback
+    try:
+        init_db()
+    except Exception as e:
+        print(f"[INIT_DB ERROR] {e}")
+        traceback.print_exc()
     yield
 
 
