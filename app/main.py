@@ -25,7 +25,9 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok"}
+    from app.database import DATABASE_URL, _is_sqlite
+    db_type = "sqlite" if _is_sqlite else "postgresql"
+    return {"status": "ok", "db": db_type, "db_url_prefix": DATABASE_URL[:25] + "..."}
 
 
 @app.get("/login")
