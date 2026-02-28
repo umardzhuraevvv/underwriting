@@ -875,6 +875,70 @@ class EditRequestOut(BaseModel):
 
 # ---------- Endpoints ----------
 
+
+@router.get("/check-duplicate")
+def check_duplicate(
+    field: str = Query(...),
+    value: str = Query(...),
+    exclude_id: int | None = Query(None),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Real-time duplicate check for a single field."""
+    allowed = {"pinfl", "passport_series", "phone_numbers", "company_inn"}
+    if field not in allowed:
+        raise HTTPException(status_code=400, detail=f"Invalid field: {field}")
+
+    value = value.strip()
+    if not value:
+        return {"duplicates": []}
+
+    duplicates: list[dict] = []
+    base_q = db.query(Anketa).filter(Anketa.status != "deleted")
+    if exclude_id:
+        base_q = base_q.filter(Anketa.id != exclude_id)
+
+    if field == "pinfl" and len(value) == 14:
+        matches = base_q.filter(Anketa.pinfl == value).all()
+    elif field == "passport_series":
+        passport_norm = value.replace(" ", "")
+        matches = []
+        for m in base_q.filter(Anketa.passport_series.isnot(None)).all():
+            if m.passport_series and m.passport_series.replace(" ", "") == passport_norm:
+                matches.append(m)
+    elif field == "phone_numbers":
+        phone_norm = _normalize_phone(value)
+        if len(phone_norm) < 9:
+            return {"duplicates": []}
+        matches = []
+        for m in base_q.filter(Anketa.phone_numbers.isnot(None)).all():
+            if m.phone_numbers and _normalize_phone(m.phone_numbers) == phone_norm:
+                matches.append(m)
+    elif field == "company_inn":
+        matches = base_q.filter(Anketa.company_inn == value).all()
+    else:
+        matches = []
+
+    field_labels = {
+        "pinfl": "ПИНФЛ",
+        "passport_series": "Паспорт",
+        "phone_numbers": "Телефон",
+        "company_inn": "ИНН",
+    }
+
+    for m in matches:
+        duplicates.append({
+            "id": m.id,
+            "full_name": m.full_name or m.company_name or f"#{m.id}",
+            "status": m.status,
+            "decision": m.decision if hasattr(m, "decision") else None,
+            "match_field": field_labels.get(field, field),
+            "created_at": str(m.created_at) if m.created_at else None,
+        })
+
+    return {"duplicates": duplicates}
+
+
 @router.post("")
 def create_anketa(
     client_type: str = Query("individual"),

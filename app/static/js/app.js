@@ -73,6 +73,21 @@ function initPassportFields() {
   });
 }
 
+// ---------- FULL NAME: LATIN ONLY ----------
+
+function formatLatinName(input) {
+  const pos = input.selectionStart;
+  const before = input.value.length;
+  input.value = input.value.replace(/[^A-Za-z\s'\-]/g, '').toUpperCase();
+  const after = input.value.length;
+  input.setSelectionRange(pos - (before - after), pos - (before - after));
+}
+
+function initLatinNameFields() {
+  const el = document.getElementById('f-full_name');
+  if (el) el.addEventListener('input', () => formatLatinName(el));
+}
+
 // ---------- PINFL VALIDATION ----------
 
 function validatePinfl(pinflId, birthDateId, errorId) {
@@ -99,7 +114,9 @@ function validatePinfl(pinflId, birthDateId, errorId) {
   const actual = pinfl.substring(1, 7);
 
   if (actual !== expected) {
-    errorEl.textContent = 'ПИНФЛ не совпадает с датой рождения (ожидается: ...' + expected + '...)';
+    // Decode actual date from PINFL for clearer message
+    const aDD = actual.substring(0, 2), aMM = actual.substring(2, 4), aYY = actual.substring(4, 6);
+    errorEl.textContent = 'ПИНФЛ не совпадает с датой рождения. В ПИНФЛ указана дата: ' + aDD + '.' + aMM + '.19' + aYY;
     errorEl.style.display = 'block';
     pinflEl.style.borderColor = 'var(--red)';
   } else {
@@ -111,16 +128,83 @@ function validatePinfl(pinflId, birthDateId, errorId) {
 function initPinflValidation() {
   const pinfl = document.getElementById('f-pinfl');
   const birthDate = document.getElementById('f-birth_date');
+  const validate = () => validatePinfl('f-pinfl', 'f-birth_date', 'pinfl-error');
   if (pinfl) {
-    pinfl.addEventListener('blur', () => validatePinfl('f-pinfl', 'f-birth_date', 'pinfl-error'));
+    pinfl.addEventListener('blur', validate);
+    pinfl.addEventListener('input', () => {
+      if (pinfl.value.trim().length === 14) validate();
+    });
   }
-  if (birthDate) {
-    birthDate.addEventListener('change', () => validatePinfl('f-pinfl', 'f-birth_date', 'pinfl-error'));
-  }
+  // birthDate listeners set via inline onchange/oninput in HTML
   const gPinfl = document.getElementById('f-guarantor_pinfl');
   if (gPinfl) {
     gPinfl.addEventListener('blur', () => validatePinfl('f-guarantor_pinfl', 'f-birth_date', 'guarantor-pinfl-error'));
   }
+}
+
+// ---------- DUPLICATE CHECK ----------
+
+const DUP_MIN_LEN = { pinfl: 14, passport_series: 4, phone_numbers: 9, company_inn: 9 };
+const _dupControllers = {};
+
+async function checkDuplicate(field, inputId, containerId) {
+  const input = document.getElementById(inputId);
+  const container = document.getElementById(containerId);
+  if (!input || !container) return;
+
+  const value = input.value.trim();
+  const minLen = DUP_MIN_LEN[field] || 4;
+  if (!value || value.replace(/\s/g, '').length < minLen) {
+    container.style.display = 'none';
+    container.innerHTML = '';
+    return;
+  }
+
+  // Cancel previous request for this field
+  if (_dupControllers[field]) _dupControllers[field].abort();
+  const controller = new AbortController();
+  _dupControllers[field] = controller;
+
+  const params = new URLSearchParams({ field, value });
+  if (currentAnketaId) params.set('exclude_id', currentAnketaId);
+
+  try {
+    const res = await fetch('/api/anketas/check-duplicate?' + params, {
+      headers: authHeaders(),
+      signal: controller.signal,
+    });
+    if (!res.ok) { container.style.display = 'none'; return; }
+    const data = await res.json();
+
+    if (!data.duplicates || data.duplicates.length === 0) {
+      container.style.display = 'none';
+      container.innerHTML = '';
+      return;
+    }
+
+    const items = data.duplicates.map(d => {
+      const st = STATUS_MAP[d.status] || { label: d.status, cls: '' };
+      return `<div style="margin-bottom:4px">⚠ Дубликат: <strong>#${d.id}</strong> — ${d.full_name} <span class="status-badge ${st.cls}">${st.label}</span> — <a href="/anketa/${d.id}" target="_blank">Открыть ↗</a></div>`;
+    }).join('');
+
+    container.innerHTML = items;
+    container.style.display = 'block';
+  } catch (e) {
+    if (e.name !== 'AbortError') container.style.display = 'none';
+  }
+}
+
+function initDuplicateChecks() {
+  const fields = [
+    { field: 'pinfl', inputId: 'f-pinfl', containerId: 'dup-pinfl' },
+    { field: 'passport_series', inputId: 'f-passport_series', containerId: 'dup-passport_series' },
+    { field: 'phone_numbers', inputId: 'f-phone_numbers', containerId: 'dup-phone_numbers' },
+    { field: 'company_inn', inputId: 'f-company_inn', containerId: 'dup-company_inn' },
+  ];
+  fields.forEach(({ field, inputId, containerId }) => {
+    const el = document.getElementById(inputId);
+    if (el) el.addEventListener('blur', () => checkDuplicate(field, inputId, containerId));
+  });
 }
 
 // ---------- AUTH ----------
@@ -298,7 +382,9 @@ function initApp() {
   // Setup money field formatting, passport masks, and PINFL validation
   initMoneyFields();
   initPassportFields();
+  initLatinNameFields();
   initPinflValidation();
+  initDuplicateChecks();
 
   // Load pending edit requests count
   loadPendingRequestsCount();
@@ -2003,29 +2089,35 @@ function renderConclusionPanel(data) {
       `;
     }
 
-    // Edit request button
-    let editRequestBtnHtml = '';
-    if (canEdit && !data.has_pending_edit_request) {
-      editRequestBtnHtml = `<button class="btn btn-outline" style="width:100%;margin-top:12px" onclick="showEditRequestModal(${data.id})">Запросить правку</button>`;
-    } else if (data.has_pending_edit_request) {
-      editRequestBtnHtml = `<div style="text-align:center;font-size:12px;color:var(--yellow);margin-top:12px;padding:8px;background:var(--yellow-bg);border-radius:8px">Запрос на правку ожидает рассмотрения</div>`;
-    }
+    // For review status with canConclude — skip to Mode 2 (re-conclusion form)
+    // so the underwriter can change the decision without requesting an edit
+    if (data.status === 'review' && canConclude) {
+      // Fall through to Mode 2 below
+    } else {
+      // Edit request button
+      let editRequestBtnHtml = '';
+      if (canEdit && !data.has_pending_edit_request) {
+        editRequestBtnHtml = `<button class="btn btn-outline" style="width:100%;margin-top:12px" onclick="showEditRequestModal(${data.id})">Запросить правку</button>`;
+      } else if (data.has_pending_edit_request) {
+        editRequestBtnHtml = `<div style="text-align:center;font-size:12px;color:var(--yellow);margin-top:12px;padding:8px;background:var(--yellow-bg);border-radius:8px">Запрос на правку ожидает рассмотрения</div>`;
+      }
 
-    panel.innerHTML = `
-      <div class="conclusion-card">
-        <div class="conclusion-card-title">Заключение</div>
-        <div class="conclusion-result result-${data.decision}">
-          <div class="conclusion-result-title">${escapeHtml(label)}</div>
-          ${comment}
-          ${finalPvHtml}
-          <div class="conclusion-result-meta">${escapeHtml(concluder)} &middot; ${concludedAt}</div>
+      panel.innerHTML = `
+        <div class="conclusion-card">
+          <div class="conclusion-card-title">Заключение</div>
+          <div class="conclusion-result result-${data.decision}">
+            <div class="conclusion-result-title">${escapeHtml(label)}</div>
+            ${comment}
+            ${finalPvHtml}
+            <div class="conclusion-result-meta">${escapeHtml(concluder)} &middot; ${concludedAt}</div>
+          </div>
+          ${autoInfoHtml}
+          ${summaryHtml}
+          ${editRequestBtnHtml}
         </div>
-        ${autoInfoHtml}
-        ${summaryHtml}
-        ${editRequestBtnHtml}
-      </div>
-    `;
-    return;
+      `;
+      return;
+    }
   }
 
   // Mode 2: status === saved or review — show auto-verdict + conclusion form

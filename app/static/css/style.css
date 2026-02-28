@@ -1279,6 +1279,29 @@ select.form-input {
   color: var(--purple);
 }
 
+/* ====================== DUPLICATE WARNINGS ====================== */
+
+.duplicate-warning {
+  background: var(--yellow-bg);
+  border: 1px solid #f0d78e;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.duplicate-warning a {
+  color: var(--purple);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.duplicate-warning a:hover {
+  text-decoration: underline;
+}
+
 /* ====================== RISK GRADE WARNINGS ====================== */
 
 .field-warning { color: #e67e22; font-size: 13px; margin-top: 4px; }
