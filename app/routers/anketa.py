@@ -1378,7 +1378,19 @@ def save_anketa(
     anketa.auto_decision_reasons = json.dumps(verdict["auto_decision_reasons"], ensure_ascii=False)
     anketa.recommended_pv = verdict["recommended_pv"]
 
-    anketa.status = "saved"
+    # If anketa was edited via approved edit request → set status to "review"
+    has_approved_edit = db.query(EditRequest).filter(
+        EditRequest.anketa_id == anketa.id,
+        EditRequest.status == "approved",
+    ).first()
+    if has_approved_edit:
+        anketa.status = "review"
+        anketa.decision = None
+        anketa.concluded_by = None
+        anketa.concluded_at = None
+        anketa.conclusion_comment = None
+    else:
+        anketa.status = "saved"
 
     # Check for duplicates and notify
     dupes = find_duplicates(db, anketa)
@@ -1427,19 +1439,21 @@ def conclude_anketa(
     if data.decision not in valid_decisions:
         raise HTTPException(status_code=400, detail=f"Недопустимое решение. Допустимые: {', '.join(valid_decisions)}")
 
-    # Validate final_pv against risk grade
-    if data.final_pv is not None:
-        anketa.final_pv = data.final_pv
-        if anketa.risk_grade and not anketa.no_scoring_response:
-            risk_rule = db.query(RiskRule).filter(
-                sa_func.lower(RiskRule.category) == anketa.risk_grade.lower(),
-                RiskRule.is_active == True
-            ).first()
-            if risk_rule and data.final_pv < risk_rule.min_pv:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Итоговый ПВ ({data.final_pv}%) ниже минимума для грейда {anketa.risk_grade} ({risk_rule.min_pv}%)"
-                )
+    # Validate final_pv (required)
+    if data.final_pv is None:
+        raise HTTPException(status_code=400, detail="Укажите итоговый ПВ%")
+
+    anketa.final_pv = data.final_pv
+    if anketa.risk_grade and not anketa.no_scoring_response:
+        risk_rule = db.query(RiskRule).filter(
+            sa_func.lower(RiskRule.category) == anketa.risk_grade.lower(),
+            RiskRule.is_active == True
+        ).first()
+        if risk_rule and data.final_pv < risk_rule.min_pv:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Итоговый ПВ ({data.final_pv}%) ниже минимума для грейда {anketa.risk_grade} ({risk_rule.min_pv}%)"
+            )
 
     is_reconclusion = anketa.decision is not None
 

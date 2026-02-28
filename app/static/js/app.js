@@ -2010,8 +2010,8 @@ function renderConclusionPanel(data) {
     return;
   }
 
-  // Mode 2: status === saved — show auto-verdict + conclusion form
-  if (data.status === 'saved' && hasAccess) {
+  // Mode 2: status === saved or review — show auto-verdict + conclusion form
+  if ((data.status === 'saved' || data.status === 'review') && hasAccess) {
     // Pre-select auto_decision
     _selectedDecision = data.auto_decision || null;
 
@@ -2103,9 +2103,15 @@ async function saveConclusion(anketaId) {
     return;
   }
 
-  // Validate final PV before saving
+  // Validate final PV before saving (required)
   const finalPvStr = document.getElementById('conclusionFinalPv')?.value;
   const finalPv = finalPvStr ? parseFloat(finalPvStr) : null;
+
+  if (finalPv === null || isNaN(finalPv)) {
+    showToast('Укажите итоговый ПВ%', 'error');
+    document.getElementById('conclusionFinalPv')?.focus();
+    return;
+  }
 
   // Client-side check against risk grade
   if (finalPv !== null && _currentViewData) {
