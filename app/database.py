@@ -373,29 +373,28 @@ def init_db():
         ("final_pv", "FLOAT"),
         ("share_token", "VARCHAR(64)"),
     ]
-    # SQLite-only migrations: add columns that were added after initial release.
-    # For PostgreSQL, create_all() already creates all columns from the model.
-    if _is_sqlite:
-        with engine.connect() as conn:
-            for col_name, col_type in new_columns:
-                try:
-                    conn.execute(text(f"ALTER TABLE anketas ADD COLUMN {col_name} {col_type}"))
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
+    # Migrations: add columns that were added after initial release.
+    # create_all() does NOT add new columns to existing tables, so we must ALTER TABLE.
+    with engine.connect() as conn:
+        for col_name, col_type in new_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE anketas ADD COLUMN {col_name} {col_type}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
 
-        # Migration: users table new columns
-        user_new_columns = [
-            ("role_id", "INTEGER REFERENCES roles(id)"),
-            ("telegram_chat_id", "VARCHAR(50)"),
-        ]
-        with engine.connect() as conn:
-            for col_name, col_type in user_new_columns:
-                try:
-                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
-                    conn.commit()
-                except Exception:
-                    conn.rollback()
+    # Migration: users table new columns
+    user_new_columns = [
+        ("role_id", "INTEGER REFERENCES roles(id)"),
+        ("telegram_chat_id", "VARCHAR(50)"),
+    ]
+    with engine.connect() as conn:
+        for col_name, col_type in user_new_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
 
     db = SessionLocal()
     try:
