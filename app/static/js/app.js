@@ -4098,11 +4098,13 @@ function printAnketa() {
   document.getElementById('printMeta').innerHTML =
     `Анкета #${data.id} | Статус: ${statusLabel} | Создана: ${created} | Автор: ${escapeHtml(data.creator_name || '—')}`;
 
-  // QR code
+  // QR code — public link (no auth required)
   const qrContainer = document.getElementById('printQr');
   qrContainer.innerHTML = '';
   try {
-    const qrUrl = window.location.origin + '/anketa/' + data.id;
+    const qrUrl = data.share_token
+      ? window.location.origin + '/public/anketa/' + data.share_token
+      : window.location.origin + '/anketa/' + data.id;
     const qr = qrcode(0, 'M');
     qr.addData(qrUrl);
     qr.make();

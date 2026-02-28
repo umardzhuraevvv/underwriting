@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 
 from app.database import init_db
 from app.routers import auth, admin, anketa
+from app.routers.anketa import public_router as anketa_public_router
 
 
 @asynccontextmanager
@@ -24,6 +25,7 @@ app = FastAPI(title="Fintech Drive — Андеррайтинг", lifespan=lifes
 app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(anketa.router)
+app.include_router(anketa_public_router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
@@ -86,3 +88,8 @@ def risk_rules_page():
 @app.get("/calculator")
 def calculator_page():
     return FileResponse("app/static/pages/index.html")
+
+
+@app.get("/public/anketa/{token}")
+def public_anketa_page(token: str):
+    return FileResponse("app/static/pages/public-anketa.html")

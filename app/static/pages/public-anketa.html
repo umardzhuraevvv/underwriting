@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Анкета — Fintech Drive</title>
+  <link href="https://fonts.googleapis.com/css2?family=Geologica:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --purple: #6B3FA0;
+      --purple-light: #8B5CC8;
+      --purple-pale: #F3EEFF;
+      --bg: #F7F6FB;
+      --white: #FFFFFF;
+      --text: #1A1225;
+      --text-mid: #5A4F6E;
+      --text-light: #9B90AD;
+      --border: #E4DDEF;
+      --green: #1E8A5E;
+      --green-bg: #E8F7F1;
+      --red: #C0392B;
+      --red-bg: #FDECEA;
+      --yellow: #D97706;
+      --yellow-bg: #FEF3C7;
+      --shadow: 0 2px 12px rgba(107,63,160,0.08);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Geologica', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    .header {
+      background: var(--purple);
+      color: white;
+      padding: 20px 0;
+      text-align: center;
+    }
+    .header h1 { font-size: 18px; font-weight: 600; }
+    .header .subtitle { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+
+    .container {
+      max-width: 800px;
+      margin: 24px auto;
+      padding: 0 16px;
+    }
+
+    .card {
+      background: var(--white);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    .meta-bar {
+      padding: 16px 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: var(--text-mid);
+    }
+    .meta-bar .anketa-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 600;
+      color: var(--purple);
+      font-size: 14px;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .status-badge .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+    }
+    .st-approved { background: var(--green-bg); color: var(--green); }
+    .st-approved .dot { background: var(--green); }
+    .st-review { background: var(--yellow-bg); color: var(--yellow); }
+    .st-review .dot { background: var(--yellow); }
+    .st-rejected { background: var(--red-bg); color: var(--red); }
+    .st-rejected .dot { background: var(--red); }
+    .st-saved { background: var(--purple-pale); color: var(--purple); }
+    .st-saved .dot { background: var(--purple); }
+    .st-draft { background: #f0f0f0; color: #888; }
+    .st-draft .dot { background: #888; }
+
+    .section-title {
+      padding: 10px 20px 4px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--purple-pale);
+      color: var(--purple);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .data-row {
+      display: flex;
+      padding: 8px 20px;
+      border-bottom: 1px solid #f3f0f7;
+      font-size: 13px;
+    }
+    .data-row:last-child { border-bottom: none; }
+    .data-label {
+      width: 220px;
+      min-width: 220px;
+      color: var(--text-light);
+      font-size: 12px;
+    }
+    .data-value {
+      flex: 1;
+      font-weight: 500;
+    }
+
+    .conclusion-block {
+      padding: 20px;
+    }
+    .conclusion-result {
+      padding: 16px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .conclusion-result.result-approved { background: var(--green-bg); color: var(--green); }
+    .conclusion-result.result-review { background: var(--yellow-bg); color: var(--yellow); }
+    .conclusion-result.result-rejected_underwriter,
+    .conclusion-result.result-rejected_client { background: var(--red-bg); color: var(--red); }
+    .conclusion-result .decision-label { font-size: 16px; font-weight: 700; }
+    .conclusion-result .decision-meta { font-size: 12px; margin-top: 6px; opacity: 0.8; }
+    .conclusion-result .decision-comment { font-size: 13px; margin-top: 8px; font-weight: 400; }
+    .conclusion-result .decision-pv { font-size: 13px; font-weight: 600; margin-top: 6px; }
+
+    .loading {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-light);
+      font-size: 14px;
+    }
+    .error-msg {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--red);
+      font-size: 14px;
+    }
+
+    .footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 11px;
+      color: var(--text-light);
+    }
+
+    @media (max-width: 600px) {
+      .data-row { flex-direction: column; gap: 2px; }
+      .data-label { width: auto; min-width: auto; }
+      .meta-bar { flex-direction: column; gap: 6px; }
+    }
+
+    @media print {
+      body { background: white; }
+      .header { background: var(--purple) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .card { box-shadow: none; border: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Fintech Drive — Андеррайтинг</h1>
+    <div class="subtitle" id="headerSubtitle">Загрузка...</div>
+  </div>
+
+  <div class="container">
+    <div id="content">
+      <div class="loading">Загрузка анкеты...</div>
+    </div>
+  </div>
+
+  <div class="footer">Fintech Drive &copy; 2024</div>
+
+  <script>
+    function esc(val) {
+      if (val === null || val === undefined || val === '') return '';
+      const d = document.createElement('div');
+      d.textContent = String(val);
+      return d.innerHTML;
+    }
+    function pv(val, suffix) {
+      if (val === null || val === undefined || val === '') return '\u2014';
+      return esc(String(val)) + (suffix || '');
+    }
+    function pd(val) {
+      if (!val) return '\u2014';
+      try { return new Date(val).toLocaleDateString('ru-RU'); } catch(e) { return String(val); }
+    }
+    function pn(val, suffix) {
+      if (val === null || val === undefined) return '\u2014';
+      return Number(val).toLocaleString('ru-RU') + (suffix || '');
+    }
+
+    function row(label, value) {
+      return '<div class="data-row"><div class="data-label">' + label + '</div><div class="data-value">' + value + '</div></div>';
+    }
+    function section(title) {
+      return '<div class="section-title">' + title + '</div>';
+    }
+
+    function getStatusBadge(status) {
+      const map = {
+        draft: ['Черновик', 'st-draft'],
+        saved: ['Сохранена', 'st-saved'],
+        approved: ['Одобрена', 'st-approved'],
+        review: ['На рассмотрении', 'st-review'],
+        rejected_underwriter: ['Отказ андеррайтера', 'st-rejected'],
+        rejected_client: ['Отказ клиента', 'st-rejected'],
+      };
+      const [label, cls] = map[status] || [status, 'st-draft'];
+      return '<span class="status-badge ' + cls + '"><span class="dot"></span>' + esc(label) + '</span>';
+    }
+
+    function renderAnketa(data) {
+      const isLegal = data.client_type === 'legal_entity';
+      const clientName = isLegal ? (data.company_name || '\u2014') : (data.full_name || '\u2014');
+      const created = data.created_at ? new Date(data.created_at).toLocaleString('ru-RU') : '\u2014';
+
+      document.getElementById('headerSubtitle').textContent =
+        (isLegal ? 'Юр. лицо' : 'Физ. лицо') + ' \u2014 ' + clientName;
+      document.title = 'Анкета #' + data.id + ' \u2014 ' + clientName;
+
+      let html = '';
+
+      // Meta card
+      html += '<div class="card"><div class="meta-bar">';
+      html += '<span class="anketa-id">#' + data.id + '</span>';
+      html += getStatusBadge(data.status);
+      html += '<span>Создана: ' + esc(created) + '</span>';
+      html += '<span>Автор: ' + esc(data.creator_name || '\u2014') + '</span>';
+      html += '</div></div>';
+
+      // Data card
+      html += '<div class="card">';
+
+      // Block 1: Client
+      if (isLegal) {
+        html += section('Компания');
+        html += row('Наименование', pv(data.company_name));
+        html += row('ИНН', pv(data.company_inn));
+        html += row('ОКЭД', pv(data.company_oked));
+        html += row('Юридический адрес', pv(data.company_legal_address));
+        html += row('Фактический адрес', pv(data.company_actual_address));
+        html += row('Телефон компании', pv(data.company_phone));
+        html += section('Директор');
+        html += row('ФИО директора', pv(data.director_full_name));
+        html += row('Телефон директора', pv(data.director_phone));
+        html += row('Телефон родственника', pv(data.director_family_phone));
+        html += row('Кем приходится', pv(data.director_family_relation));
+        html += section('Контактное лицо');
+        html += row('ФИО', pv(data.contact_person_name));
+        html += row('Должность', pv(data.contact_person_role));
+        html += row('Телефон', pv(data.contact_person_phone));
+      } else {
+        html += section('Клиент');
+        html += row('ФИО', pv(data.full_name));
+        html += row('Дата рождения', pd(data.birth_date));
+        html += row('ПИНФЛ', pv(data.pinfl));
+        html += row('Серия/номер паспорта', pv(data.passport_series));
+        html += row('Дата выдачи', pd(data.passport_issue_date));
+        html += row('Кем выдан', pv(data.passport_issued_by));
+        html += row('Адрес регистрации', pv(data.registration_address));
+        html += row('Ориентир (рег.)', pv(data.registration_landmark));
+        html += row('Фактический адрес', pv(data.actual_address));
+        html += row('Ориентир (факт.)', pv(data.actual_landmark));
+        html += row('Телефон', pv(data.phone_numbers));
+        if (data.relative_phones) {
+          try {
+            const rp = JSON.parse(data.relative_phones);
+            if (Array.isArray(rp)) {
+              rp.forEach(function(p, i) {
+                if (p && p.phone) html += row('Доп. контакт ' + (i+1), pv(p.phone) + (p.relation ? ' (' + esc(p.relation) + ')' : ''));
+              });
+            }
+          } catch(e) {
+            html += row('Доп. контакты', pv(data.relative_phones));
+          }
+        }
+      }
+
+      // Block 2: Car & Deal
+      html += section('Автомобиль и сделка');
+      html += row('Партнёр', pv(data.partner));
+      html += row('Марка', pv(data.car_brand));
+      html += row('Модель', pv(data.car_model));
+      html += row('Комплектация', pv(data.car_specs));
+      html += row('Год выпуска', pv(data.car_year));
+      html += row('Пробег', pn(data.mileage, ' км'));
+      html += row('Стоимость', pn(data.purchase_price, ' сум'));
+      html += row('ПВ %', pv(data.down_payment_percent, '%'));
+      html += row('Сумма ПВ', pn(data.down_payment_amount, ' сум'));
+      html += row('Остаток', pn(data.remaining_amount, ' сум'));
+      html += row('Срок', pv(data.lease_term_months, ' мес'));
+      html += row('Ставка', pv(data.interest_rate, '%'));
+      html += row('Ежемесячный платёж', pn(data.monthly_payment, ' сум'));
+      html += row('Цель покупки', pv(data.purchase_purpose));
+
+      // Block 3: Income
+      html += section('Доходы');
+      if (isLegal) {
+        html += row('Выручка (период)', pv(data.company_revenue_period, ' мес'));
+        html += row('Выручка (сумма)', pn(data.company_revenue_total, ' сум'));
+        html += row('Чистая прибыль', pn(data.company_net_profit, ' сум'));
+        html += row('Доход директора (период)', pv(data.director_income_period, ' мес'));
+        html += row('Доход директора (сумма)', pn(data.director_income_total, ' сум'));
+      } else {
+        html += row('Официальное трудоустройство', pv(data.has_official_employment));
+        html += row('Работодатель', pv(data.employer_name));
+        html += row('Зарплата (период)', pv(data.salary_period_months, ' мес'));
+        html += row('Зарплата (сумма)', pn(data.total_salary, ' сум'));
+        html += row('Основная деятельность', pv(data.main_activity));
+        html += row('Осн. деят. (период)', pv(data.main_activity_period, ' мес'));
+        html += row('Осн. деят. (доход)', pn(data.main_activity_income, ' сум'));
+        html += row('Доп. доход (источник)', pv(data.additional_income_source));
+        html += row('Доп. доход (период)', pv(data.additional_income_period, ' мес'));
+        html += row('Доп. доход (сумма)', pn(data.additional_income_total, ' сум'));
+        html += row('Прочий доход (источник)', pv(data.other_income_source));
+        html += row('Прочий доход (период)', pv(data.other_income_period, ' мес'));
+        html += row('Прочий доход (сумма)', pn(data.other_income_total, ' сум'));
+        html += row('Имущество', pv(data.property_type));
+        html += row('Описание имущества', pv(data.property_details));
+      }
+      html += row('Итого месячный доход', pn(data.total_monthly_income, ' сум'));
+
+      // Block 4: Credit history
+      html += section('Кредитная история');
+      if (isLegal) {
+        html += row('<b>Компания</b>', '');
+        html += row('Наличие обязательств', pv(data.company_has_obligations));
+        html += row('Сумма обязательств', pn(data.company_obligations_amount, ' сум'));
+        html += row('Кол-во обязательств', pv(data.company_obligations_count));
+        html += row('Ежемесячный платёж', pn(data.company_monthly_payment, ' сум'));
+        html += row('Категория просрочки', pv(data.company_overdue_category));
+        html += row('Дата последней просрочки', pd(data.company_last_overdue_date));
+        html += row('Причина просрочки', pv(data.company_overdue_reason));
+        html += row('<b>Директор</b>', '');
+        html += row('Наличие обязательств', pv(data.director_has_obligations));
+        html += row('Сумма обязательств', pn(data.director_obligations_amount, ' сум'));
+        html += row('Кол-во обязательств', pv(data.director_obligations_count));
+        html += row('Ежемесячный платёж', pn(data.director_monthly_payment, ' сум'));
+        html += row('Категория просрочки', pv(data.director_overdue_category));
+        html += row('Дата последней просрочки', pd(data.director_last_overdue_date));
+        html += row('Причина просрочки', pv(data.director_overdue_reason));
+        html += row('<b>Поручитель</b>', '');
+        html += row('ФИО', pv(data.guarantor_full_name));
+        html += row('ПИНФЛ', pv(data.guarantor_pinfl));
+        html += row('Паспорт', pv(data.guarantor_passport));
+        html += row('Телефон', pv(data.guarantor_phone));
+        html += row('Месячный доход', pn(data.guarantor_monthly_income, ' сум'));
+        html += row('Категория просрочки', pv(data.guarantor_overdue_category));
+        html += row('Дата последней просрочки', pd(data.guarantor_last_overdue_date));
+      } else {
+        html += row('Наличие обязательств', pv(data.has_current_obligations));
+        html += row('Сумма обязательств', pn(data.total_obligations_amount, ' сум'));
+        html += row('Кол-во обязательств', pv(data.obligations_count));
+        html += row('Ежемесячный платёж', pn(data.monthly_obligations_payment, ' сум'));
+        html += row('Закрытые обязательства', pv(data.closed_obligations_count));
+        html += row('Макс. просрочка (дни, осн. долг)', pv(data.max_overdue_principal_days, ' дн.'));
+        html += row('Макс. просрочка (сумма, осн. долг)', pn(data.max_overdue_principal_amount, ' сум'));
+        html += row('Макс. просрочка (дни, %)', pv(data.max_continuous_overdue_percent_days, ' дн.'));
+        html += row('Макс. просрочка (сумма, %)', pn(data.max_overdue_percent_amount, ' сум'));
+        html += row('Категория просрочки', pv(data.overdue_category));
+        html += row('Дата последней просрочки', pd(data.last_overdue_date));
+        html += row('Результат проверки', pv(data.overdue_check_result));
+        html += row('Причина просрочки', pv(data.overdue_reason));
+      }
+      html += row('DTI', data.dti != null ? Number(data.dti).toFixed(1) + '%' : '\u2014');
+
+      html += '</div>';
+
+      // Conclusion card
+      if (data.decision) {
+        const decLabels = {
+          approved: 'Одобрена',
+          review: 'На рассмотрении',
+          rejected_underwriter: 'Отказ андеррайтера',
+          rejected_client: 'Отказ клиента',
+        };
+        const label = decLabels[data.decision] || data.decision;
+        const concluder = data.concluder_name || '\u2014';
+        const concludedAt = data.concluded_at ? new Date(data.concluded_at).toLocaleString('ru-RU') : '\u2014';
+
+        html += '<div class="card"><div class="conclusion-block">';
+        html += '<div style="font-size:12px;font-weight:700;color:var(--purple);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px">Заключение</div>';
+        html += '<div class="conclusion-result result-' + data.decision + '">';
+        html += '<div class="decision-label">' + esc(label) + '</div>';
+        if (data.final_pv != null) {
+          html += '<div class="decision-pv">Итоговый ПВ: ' + data.final_pv + '%</div>';
+        }
+        if (data.conclusion_comment) {
+          html += '<div class="decision-comment">' + esc(data.conclusion_comment) + '</div>';
+        }
+        html += '<div class="decision-meta">' + esc(concluder) + ' &middot; ' + concludedAt + '</div>';
+        if (data.conclusion_version > 1) {
+          html += '<div class="decision-meta">Версия заключения: ' + data.conclusion_version + '</div>';
+        }
+        html += '</div>';
+
+        // Auto-verdict info
+        if (data.auto_decision) {
+          var avLabels = { approved: 'Одобрено', review: 'На рассмотрение', rejected: 'Отказ' };
+          html += '<div style="margin-top:12px;padding:10px;background:var(--purple-pale);border-radius:8px;font-size:12px">';
+          html += '<b>Авто-вердикт:</b> ' + esc(avLabels[data.auto_decision] || data.auto_decision);
+          if (data.risk_grade) html += ' | Риск-грейд: ' + esc(data.risk_grade);
+          if (data.recommended_pv != null) html += ' | Рекомендуемый ПВ: ' + data.recommended_pv + '%';
+          html += '</div>';
+        }
+
+        html += '</div></div>';
+      }
+
+      document.getElementById('content').innerHTML = html;
+    }
+
+    // Load anketa data
+    (function() {
+      var path = window.location.pathname;
+      var token = path.replace('/public/anketa/', '');
+      fetch('/api/public/anketa/' + encodeURIComponent(token))
+        .then(function(res) {
+          if (!res.ok) throw new Error(res.status === 404 ? 'Анкета не найдена' : 'Ошибка загрузки');
+          return res.json();
+        })
+        .then(function(data) {
+          renderAnketa(data);
+        })
+        .catch(function(err) {
+          document.getElementById('headerSubtitle').textContent = '';
+          document.getElementById('content').innerHTML =
+            '<div class="card"><div class="error-msg">' + esc(err.message) + '</div></div>';
+        });
+    })();
+  </script>
+</body>
+</html>

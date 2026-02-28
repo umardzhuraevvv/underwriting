@@ -2,6 +2,7 @@ import hashlib
 import json
 import math
 import os
+import secrets
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any
 
@@ -43,6 +44,7 @@ CoerceInt = Annotated[int | None, BeforeValidator(_coerce_int)]
 CoerceStr = Annotated[str | None, BeforeValidator(_coerce_str)]
 
 router = APIRouter(prefix="/api/anketas", tags=["anketas"])
+public_router = APIRouter(prefix="/api/public", tags=["public"])
 
 
 # ---------- Schemas ----------
@@ -758,6 +760,7 @@ def anketa_to_detail(a: Anketa, db: Session = None) -> dict:
         "conclusion_version": a.conclusion_version or 0,
         "deleted_at": str(a.deleted_at) if a.deleted_at else None,
         "deletion_reason": a.deletion_reason,
+        "share_token": a.share_token,
     }
     result["has_pending_edit_request"] = False
     if db:
@@ -1509,6 +1512,10 @@ def conclude_anketa(
             anketa.id,
         )
 
+    # Generate share token for public access (QR code)
+    if not anketa.share_token:
+        anketa.share_token = secrets.token_urlsafe(32)
+
     # Telegram: notify creator about conclusion
     from app.telegram_service import notify_telegram
     notify_telegram(db, anketa.created_by,
@@ -1792,3 +1799,17 @@ def get_employee_stats(
     # Sort by total desc
     result.sort(key=lambda x: x["total"], reverse=True)
     return result
+
+
+# ---------- Public API (no auth) ----------
+
+@public_router.get("/anketa/{token}")
+def get_public_anketa(token: str, db: Session = Depends(get_db)):
+    """Return anketa data by share_token (no authentication required)."""
+    anketa = db.query(Anketa).filter(
+        Anketa.share_token == token,
+        Anketa.status != "deleted",
+    ).first()
+    if not anketa:
+        raise HTTPException(status_code=404, detail="Анкета не найдена")
+    return anketa_to_detail(anketa, db)

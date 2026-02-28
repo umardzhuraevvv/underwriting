@@ -204,6 +204,9 @@ class Anketa(Base):
     final_pv = Column(Float)                     # final PV% from conclusion
     conclusion_version = Column(Integer, default=0)  # 1, 2, 3... incremented on each conclusion
 
+    # Public share
+    share_token = Column(String(64), unique=True, index=True)
+
     # Soft delete
     deleted_at = Column(DateTime)
     deleted_by = Column(Integer, ForeignKey("users.id"))
@@ -368,6 +371,7 @@ def init_db():
         ("risk_grade", "VARCHAR(50)"),
         ("no_scoring_response", "BOOLEAN DEFAULT FALSE"),
         ("final_pv", "FLOAT"),
+        ("share_token", "VARCHAR(64)"),
     ]
     # SQLite-only migrations: add columns that were added after initial release.
     # For PostgreSQL, create_all() already creates all columns from the model.
