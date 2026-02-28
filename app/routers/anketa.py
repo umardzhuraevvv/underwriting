@@ -879,6 +879,9 @@ def create_anketa(
     db: Session = Depends(get_db),
 ):
     """Create a new draft anketa."""
+    perms = get_user_permissions(user, db)
+    if not perms.get("anketa_create"):
+        raise HTTPException(status_code=403, detail="Нет права на создание анкет")
     anketa = Anketa(created_by=user.id, status="draft", client_type=client_type)
     db.add(anketa)
     db.commit()
@@ -1237,6 +1240,11 @@ def update_anketa(
     if not anketa:
         raise HTTPException(status_code=404, detail="Анкета не найдена")
     check_anketa_access(anketa, user, db)
+    # Permission check: only creator or users with anketa_edit can edit
+    if anketa.created_by != user.id:
+        perms = get_user_permissions(user, db)
+        if not perms.get("anketa_edit"):
+            raise HTTPException(status_code=403, detail="Нет права на редактирование анкет")
     if anketa.status != "draft":
         raise HTTPException(status_code=400, detail="Редактировать можно только черновики")
 
@@ -1429,6 +1437,10 @@ def conclude_anketa(
     if not anketa:
         raise HTTPException(status_code=404, detail="Анкета не найдена")
     check_anketa_access(anketa, user, db)
+    # Permission check: anketa_conclude required
+    perms = get_user_permissions(user, db)
+    if not perms.get("anketa_conclude"):
+        raise HTTPException(status_code=403, detail="Нет права на вынесение заключения")
 
     # Allow conclusion for saved anketas and re-conclusion for already concluded
     allowed_statuses = {"saved", "approved", "review", "rejected_underwriter", "rejected_client"}
@@ -1515,12 +1527,14 @@ def delete_anketa(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Soft-delete an anketa (only by creator or admin)."""
+    """Soft-delete an anketa (only by creator or users with anketa_delete permission)."""
     anketa = db.query(Anketa).filter(Anketa.id == anketa_id).first()
     if not anketa:
         raise HTTPException(status_code=404, detail="Анкета не найдена")
-    if user.role != "admin" and anketa.created_by != user.id:
-        raise HTTPException(status_code=403, detail="Удалить анкету может только её создатель или администратор")
+    if anketa.created_by != user.id:
+        perms = get_user_permissions(user, db)
+        if not perms.get("anketa_delete"):
+            raise HTTPException(status_code=403, detail="Нет права на удаление анкет")
     if anketa.status == "deleted":
         raise HTTPException(status_code=400, detail="Анкета уже удалена")
     if not data.reason or not data.reason.strip():

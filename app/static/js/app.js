@@ -275,10 +275,13 @@ function initApp() {
   document.getElementById('riskRulesNavItem').style.display = hasRulesManage ? '' : 'none';
   document.getElementById('empStatsNavItem').style.display = hasAnalyticsView ? '' : 'none';
 
-  // Hide new-anketa nav if no anketa_create
-  if (!(perms.anketa_create !== false)) {
-    // by default allow, only hide if explicitly false
-  }
+  // Hide new-anketa nav and buttons if no anketa_create permission
+  const hasAnketaCreate = perms.anketa_create !== false;
+  const newAnketaNav = document.getElementById('newAnketaNavItem');
+  if (newAnketaNav) newAnketaNav.style.display = hasAnketaCreate ? '' : 'none';
+  document.querySelectorAll('.new-anketa-btn').forEach(btn => {
+    btn.style.display = hasAnketaCreate ? '' : 'none';
+  });
 
   // Setup anketa auto-calculations
   setupAnketaCalcListeners();
@@ -695,6 +698,11 @@ const leIntFields = new Set([
 // ---------- ANKETA: CREATE ----------
 
 function createAnketa() {
+  const _cp = currentUser && currentUser.permissions || {};
+  if (_cp.anketa_create === false) {
+    showToast('Нет права на создание анкет', 'error');
+    return;
+  }
   currentAnketaId = null;
   navigate('new-anketa', { anketaId: null, isNew: true });
 }
@@ -762,8 +770,9 @@ function renderAnketasTable(data) {
     const created = a.created_at ? new Date(a.created_at).toLocaleDateString('ru-RU') : '—';
     const creator = a.creator_name ? escapeHtml(a.creator_name) : '—';
 
-    // Delete button — for own anketas or admin, not already deleted
-    const canDelete = currentUser && (a.created_by === currentUser.id || currentUser.role === 'admin') && a.status !== 'deleted';
+    // Delete button — for own anketas or users with anketa_delete permission, not already deleted
+    const _p = currentUser && currentUser.permissions || {};
+    const canDelete = currentUser && (a.created_by === currentUser.id || _p.anketa_delete) && a.status !== 'deleted';
     const deleteBtn = canDelete
       ? `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); openDeleteAnketaModal(${a.id}, '${escapeHtml(name)}')">Удалить</button>`
       : '';
@@ -836,7 +845,14 @@ function clearAnketaFilters() {
 
 function openAnketa(id, status) {
   if (status === 'draft') {
-    navigate('new-anketa', { anketaId: id, loadExisting: true });
+    // Only open in edit mode if user is the creator or has anketa_edit permission
+    const perms = currentUser && currentUser.permissions || {};
+    const canEdit = perms.anketa_edit !== false || perms.anketa_create !== false;
+    if (canEdit) {
+      navigate('new-anketa', { anketaId: id, loadExisting: true });
+    } else {
+      navigate('view-anketa', { anketaId: id });
+    }
   } else {
     navigate('view-anketa', { anketaId: id });
   }
@@ -1950,8 +1966,10 @@ function renderConclusionPanel(data) {
     </div>
   `;
 
-  // Access check
-  const hasAccess = currentUser && (currentUser.id === data.created_by || currentUser.role === 'admin');
+  // Granular permission checks
+  const _permsC = currentUser && currentUser.permissions || {};
+  const canConclude = currentUser && _permsC.anketa_conclude;
+  const canEdit = currentUser && (currentUser.id === data.created_by || _permsC.anketa_edit);
 
   // Mode 1: decision already made — show result
   if (data.decision) {
@@ -1987,7 +2005,7 @@ function renderConclusionPanel(data) {
 
     // Edit request button
     let editRequestBtnHtml = '';
-    if (hasAccess && !data.has_pending_edit_request) {
+    if (canEdit && !data.has_pending_edit_request) {
       editRequestBtnHtml = `<button class="btn btn-outline" style="width:100%;margin-top:12px" onclick="showEditRequestModal(${data.id})">Запросить правку</button>`;
     } else if (data.has_pending_edit_request) {
       editRequestBtnHtml = `<div style="text-align:center;font-size:12px;color:var(--yellow);margin-top:12px;padding:8px;background:var(--yellow-bg);border-radius:8px">Запрос на правку ожидает рассмотрения</div>`;
@@ -2011,7 +2029,7 @@ function renderConclusionPanel(data) {
   }
 
   // Mode 2: status === saved or review — show auto-verdict + conclusion form
-  if ((data.status === 'saved' || data.status === 'review') && hasAccess) {
+  if ((data.status === 'saved' || data.status === 'review') && canConclude) {
     // Pre-select auto_decision
     _selectedDecision = data.auto_decision || null;
 
@@ -2078,11 +2096,14 @@ function renderConclusionPanel(data) {
   }
 
   // Mode 3: draft or other — just summary
+  const statusMsg = (data.status === 'saved' || data.status === 'review')
+    ? 'Заключение ожидается от андеррайтера'
+    : 'Заключение доступно после сохранения анкеты';
   panel.innerHTML = `
     <div class="conclusion-card">
       <div class="conclusion-card-title">Сводка</div>
       ${summaryHtml}
-      <div style="font-size:12px;color:var(--text-light);text-align:center;padding:8px 0">Заключение доступно после сохранения анкеты</div>
+      <div style="font-size:12px;color:var(--text-light);text-align:center;padding:8px 0">${statusMsg}</div>
     </div>
   `;
 }

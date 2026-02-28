@@ -36,7 +36,7 @@
       Анкеты
       <span class="nav-badge" id="anketyBadge">0</span>
     </a>
-    <a class="nav-item" data-page="new-anketa" onclick="createAnketa()">
+    <a class="nav-item" data-page="new-anketa" id="newAnketaNavItem" onclick="createAnketa()">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       Новая анкета
     </a>
@@ -131,7 +131,7 @@
           <button class="period-btn client-filter-btn" data-ct="individual" onclick="setClientTypeFilter('individual')">Физ. лица</button>
           <button class="period-btn client-filter-btn" data-ct="legal_entity" onclick="setClientTypeFilter('legal_entity')">Юр. лица</button>
         </div>
-        <button class="btn btn-primary" onclick="createAnketa()">+ Новая анкета</button>
+        <button class="btn btn-primary new-anketa-btn" onclick="createAnketa()">+ Новая анкета</button>
       </div>
     </div>
     <div class="content">
@@ -173,7 +173,7 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           <input placeholder="Поиск по ФИО, ID..." id="anketySearch" oninput="filterAnketas()">
         </div>
-        <button class="btn btn-primary" onclick="createAnketa()">+ Новая анкета</button>
+        <button class="btn btn-primary new-anketa-btn" onclick="createAnketa()">+ Новая анкета</button>
       </div>
     </div>
     <div class="content">
