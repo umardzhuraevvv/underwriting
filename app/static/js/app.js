@@ -860,7 +860,7 @@ function renderAnketasTable(data) {
     const _p = currentUser && currentUser.permissions || {};
     const canDelete = currentUser && (a.created_by === currentUser.id || _p.anketa_delete) && a.status !== 'deleted';
     const deleteBtn = canDelete
-      ? `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); openDeleteAnketaModal(${a.id}, '${escapeHtml(name)}')">Удалить</button>`
+      ? `<button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); openDeleteAnketaModal(${a.id}, '${escapeAttr(name)}')">Удалить</button>`
       : '';
 
     return `
@@ -2025,6 +2025,10 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+}
+
 // ---------- CONCLUSION PANEL ----------
 
 let _selectedDecision = null;
@@ -2829,7 +2833,7 @@ function renderRiskRules() {
         <td>
           <div style="display:flex;gap:6px">
             <button class="btn btn-outline btn-sm" onclick="saveRiskRule(${r.id})">Сохранить</button>
-            <button class="btn btn-sm btn-danger" onclick="deleteRiskRule(${r.id}, '${escapeHtml(r.category)}')">Удалить</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteRiskRule(${r.id}, '${escapeAttr(r.category)}')">Удалить</button>
           </div>
         </td>
       </tr>`;
@@ -3146,7 +3150,7 @@ function renderEditRequests(requests) {
       <div class="request-card">
         <div class="request-header">
           <div>
-            <span style="font-weight:600;font-size:14px;cursor:pointer;color:var(--purple)" onclick="openAnketa(${r.anketa_id}, '${r.anketa_status || ''}')">${escapeHtml(clientName)}</span>
+            <span style="font-weight:600;font-size:14px;cursor:pointer;color:var(--purple)" onclick="openAnketa(${r.anketa_id}, '${escapeAttr(r.anketa_status || '')}')">${escapeHtml(clientName)}</span>
             <span style="font-size:12px;color:var(--text-light);margin-left:8px">#${r.anketa_id}</span>
           </div>
           <span class="request-status ${r.status}">${statusLabel}</span>
