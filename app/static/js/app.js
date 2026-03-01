@@ -117,8 +117,10 @@ function validatePinfl(pinflId, birthDateId, errorId) {
     // Decode actual date from PINFL for clearer message
     const aDD = actual.substring(0, 2), aMM = actual.substring(2, 4), aYY = actual.substring(4, 6);
     errorEl.textContent = 'ПИНФЛ не совпадает с датой рождения. В ПИНФЛ указана дата: ' + aDD + '.' + aMM + '.19' + aYY;
-    errorEl.style.display = 'block';
+    errorEl.style.display = 'flex';
     pinflEl.style.borderColor = 'var(--red)';
+    pinflEl.classList.add('input-shake');
+    setTimeout(() => pinflEl.classList.remove('input-shake'), 300);
   } else {
     errorEl.style.display = 'none';
     pinflEl.style.borderColor = '';
@@ -182,9 +184,10 @@ async function checkDuplicate(field, inputId, containerId) {
       return;
     }
 
+    const warnSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
     const items = data.duplicates.map(d => {
       const st = STATUS_MAP[d.status] || { label: d.status, cls: '' };
-      return `<div style="margin-bottom:4px">⚠ Дубликат: <strong>#${d.id}</strong> — ${d.full_name} <span class="status-badge ${st.cls}">${st.label}</span> — <a href="/anketa/${d.id}" target="_blank">Открыть ↗</a></div>`;
+      return `<div class="dup-item">${warnSvg} Дубликат: <strong>#${d.id}</strong> — ${escapeHtml(d.full_name)} <span class="status-badge ${st.cls}">${st.label}</span> <a href="/anketa/${d.id}" target="_blank">Открыть ↗</a></div>`;
     }).join('');
 
     container.innerHTML = items;
@@ -248,9 +251,15 @@ function showToast(message, type = 'success') {
   const container = document.getElementById('toastContainer');
   const toast = document.createElement('div');
   toast.className = 'toast ' + type;
-  toast.textContent = (type === 'success' ? '✓ ' : '✕ ') + message;
+  const icon = type === 'success'
+    ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+    : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+  toast.innerHTML = icon + '<span>' + message + '</span>';
   container.appendChild(toast);
-  setTimeout(() => toast.remove(), 4000);
+  setTimeout(() => {
+    toast.classList.add('removing');
+    setTimeout(() => toast.remove(), 300);
+  }, 4000);
 }
 
 // ---------- NAVIGATION ----------
@@ -321,6 +330,76 @@ window.addEventListener('popstate', (e) => {
   }
 });
 
+// ---------- SIDEBAR COLLAPSE ----------
+
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const isCollapsed = sidebar.classList.toggle('sidebar-collapsed');
+  localStorage.setItem('sidebarCollapsed', isCollapsed ? '1' : '0');
+}
+
+function restoreSidebarState() {
+  if (localStorage.getItem('sidebarCollapsed') === '1') {
+    document.getElementById('sidebar').classList.add('sidebar-collapsed');
+  }
+  document.documentElement.classList.remove('sidebar-pre-collapsed');
+}
+
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const newTheme = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  updateThemeIcon(newTheme);
+}
+
+function updateThemeIcon(theme) {
+  const icon = document.getElementById('themeIcon');
+  if (!icon) return;
+  icon.innerHTML = theme === 'dark'
+    ? '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>'
+    : '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+}
+
+function toggleProfileMenu() {
+  const dropdown = document.getElementById('profileDropdown');
+  const user = document.getElementById('sidebarUser');
+  const isOpen = dropdown.classList.toggle('show');
+  user.classList.toggle('open', isOpen);
+}
+
+// Close profile dropdown on outside click
+document.addEventListener('click', (e) => {
+  const user = document.getElementById('sidebarUser');
+  if (user && !user.contains(e.target)) {
+    document.getElementById('profileDropdown')?.classList.remove('show');
+    user.classList.remove('open');
+  }
+});
+
+function closeModal(modalId) {
+  const modal = document.getElementById(modalId);
+  if (!modal) return;
+  modal.classList.add('closing');
+  setTimeout(() => {
+    modal.classList.remove('show', 'closing');
+  }, 200);
+}
+
+function showBanner(text) {
+  const banner = document.getElementById('infoBanner');
+  const bannerText = document.getElementById('infoBannerText');
+  if (banner && bannerText) {
+    bannerText.textContent = text;
+    banner.style.display = 'flex';
+  }
+}
+
+function dismissBanner() {
+  const banner = document.getElementById('infoBanner');
+  if (banner) banner.style.display = 'none';
+}
+
 // ---------- INIT ----------
 
 function initApp() {
@@ -329,6 +408,15 @@ function initApp() {
   const user = getUser();
   if (!user) { logout(); return; }
   currentUser = user;
+
+  // Restore sidebar collapsed state
+  restoreSidebarState();
+
+  // Restore theme icon
+  updateThemeIcon(localStorage.getItem('theme') || 'light');
+
+  // Show welcome banner
+  showBanner('Добро пожаловать в систему андеррайтинга Fintech Drive!');
 
   // Set user info in sidebar
   const initials = user.full_name
@@ -343,6 +431,10 @@ function initApp() {
 
   const perms = user.permissions || {};
   document.getElementById('userRole').textContent = user.role_name || (user.role === 'admin' ? 'Администратор' : 'Инспектор');
+
+  // Set tooltip for collapsed sidebar
+  const sidebarUser = document.querySelector('.sidebar-user');
+  if (sidebarUser) sidebarUser.setAttribute('data-tooltip', user.full_name);
 
   // Permissions-based UI visibility
   const hasUserManage = perms.user_manage || user.role === 'admin';
@@ -510,7 +602,7 @@ function openCreateUserModal() {
 }
 
 function closeCreateUserModal() {
-  document.getElementById('createUserModal').classList.remove('show');
+  closeModal('createUserModal');
 }
 
 async function createUser() {
@@ -581,7 +673,7 @@ function openEditUserModal(userId) {
 }
 
 function closeEditUserModal() {
-  document.getElementById('editUserModal').classList.remove('show');
+  closeModal('editUserModal');
 }
 
 async function saveUser() {
@@ -714,7 +806,7 @@ function showCredentials(email, password) {
 }
 
 function closeCredentialsModal() {
-  document.getElementById('credentialsModal').classList.remove('show');
+  closeModal('credentialsModal');
 }
 
 function copyCredentials() {
@@ -2280,7 +2372,7 @@ function openDeleteAnketaModal(id, name) {
 }
 
 function closeDeleteAnketaModal() {
-  document.getElementById('deleteAnketaModal').classList.remove('show');
+  closeModal('deleteAnketaModal');
 }
 
 async function confirmDeleteAnketa() {
@@ -2355,27 +2447,63 @@ async function loadDashboardStats() {
 function renderDashboard(stats) {
   const rejected = stats.rejected_underwriter + stats.rejected_client;
 
-  // Stat cards
+  // Stat cards with icons
   const cardsHtml = `
-    <div class="stat-card">
-      <div class="stat-label">Всего анкет</div>
-      <div class="stat-value">${stats.total}</div>
-      <div class="stat-sub">За выбранный период</div>
+    <div class="stat-card" onclick="navigate('ankety')">
+      <div class="stat-icon stat-icon-purple">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <div class="stat-label">Всего анкет</div>
+        <div class="stat-value">${stats.total}</div>
+        <div class="stat-sub">За выбранный период</div>
+      </div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Одобрено</div>
-      <div class="stat-value" style="color:var(--green)">${stats.approved}</div>
-      <div class="stat-sub">Решение: одобрено</div>
+    <div class="stat-card" onclick="navigate('ankety')">
+      <div class="stat-icon stat-icon-green">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22 4 12 14.01 9 11.01"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <div class="stat-label">Одобрено</div>
+        <div class="stat-value" style="color:var(--green)">${stats.approved}</div>
+        <div class="stat-sub">Решение: одобрено</div>
+      </div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">На рассмотрении</div>
-      <div class="stat-value" style="color:var(--yellow)">${stats.review + stats.saved}</div>
-      <div class="stat-sub">Сохранённые + на рассмотр.</div>
+    <div class="stat-card" onclick="navigate('ankety')">
+      <div class="stat-icon stat-icon-yellow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <div class="stat-label">На рассмотрении</div>
+        <div class="stat-value" style="color:var(--yellow)">${stats.review + stats.saved}</div>
+        <div class="stat-sub">Сохранённые + на рассмотр.</div>
+      </div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Отказано</div>
-      <div class="stat-value" style="color:var(--red)">${rejected}</div>
-      <div class="stat-sub">Андерр. ${stats.rejected_underwriter} / Клиент ${stats.rejected_client}</div>
+    <div class="stat-card" onclick="navigate('ankety')">
+      <div class="stat-icon stat-icon-red">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+      </div>
+      <div class="stat-info">
+        <div class="stat-label">Отказано</div>
+        <div class="stat-value" style="color:var(--red)">${rejected}</div>
+        <div class="stat-sub">Андерр. ${stats.rejected_underwriter} / Клиент ${stats.rejected_client}</div>
+      </div>
     </div>
   `;
   document.getElementById('dashboardStats').innerHTML = cardsHtml;
@@ -2453,14 +2581,14 @@ function setClientTypeFilter(ct) {
 // Close modals on overlay click
 document.querySelectorAll('.modal-overlay').forEach(overlay => {
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.classList.remove('show');
+    if (e.target === overlay) closeModal(overlay.id);
   });
 });
 
 // Close modals on Escape
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    document.querySelectorAll('.modal-overlay.show').forEach(m => m.classList.remove('show'));
+    document.querySelectorAll('.modal-overlay.show').forEach(m => closeModal(m.id));
   }
 });
 
@@ -2755,7 +2883,7 @@ function openExcelExportModal() {
 }
 
 function closeExcelExportModal() {
-  document.getElementById('excelExportModal').classList.remove('show');
+  closeModal('excelExportModal');
 }
 
 async function downloadExcel() {
@@ -2895,7 +3023,7 @@ function showAddRiskRuleModal() {
 }
 
 function closeAddRiskRuleModal() {
-  document.getElementById('addRiskRuleModal').classList.remove('show');
+  closeModal('addRiskRuleModal');
 }
 
 async function createRiskRule() {
@@ -3002,14 +3130,14 @@ function checkRiskGradePV() {
   const pvPercent = parseFloat(document.getElementById('f-down_payment_percent')?.value) || 0;
 
   if (pvPercent < rule.min_pv) {
+    warningEl.className = 'field-error-msg';
     warningEl.textContent = `ПВ (${pvPercent}%) ниже минимума для грейда ${rule.category} (${rule.min_pv}%)`;
-    warningEl.style.display = 'block';
-    warningEl.style.color = '#e74c3c';
+    warningEl.style.display = 'flex';
     return `ПВ (${pvPercent}%) ниже минимума для грейда ${rule.category} (${rule.min_pv}%)`;
   } else {
+    warningEl.className = 'field-warning';
     warningEl.textContent = `Мин. ПВ для грейда ${rule.category}: ${rule.min_pv}%`;
-    warningEl.style.display = 'block';
-    warningEl.style.color = '#e67e22';
+    warningEl.style.display = 'flex';
     return null;
   }
 }
@@ -3060,7 +3188,7 @@ function showEditRequestModal(anketaId) {
 }
 
 function closeEditRequestModal() {
-  document.getElementById('editRequestModal').classList.remove('show');
+  closeModal('editRequestModal');
   _editRequestAnketaId = null;
 }
 
@@ -4280,7 +4408,7 @@ function openCreateRoleModal() {
   document.getElementById('createRoleError').classList.remove('show');
   document.getElementById('createRoleModal').classList.add('show');
 }
-function closeCreateRoleModal() { document.getElementById('createRoleModal').classList.remove('show'); }
+function closeCreateRoleModal() { closeModal('createRoleModal'); }
 
 async function createRole() {
   const errEl = document.getElementById('createRoleError');
@@ -4307,7 +4435,7 @@ function openEditRoleModal(roleId) {
   document.getElementById('editRoleError').classList.remove('show');
   document.getElementById('editRoleModal').classList.add('show');
 }
-function closeEditRoleModal() { document.getElementById('editRoleModal').classList.remove('show'); }
+function closeEditRoleModal() { closeModal('editRoleModal'); }
 
 async function saveRole() {
   const errEl = document.getElementById('editRoleError');
@@ -4437,7 +4565,7 @@ async function openTelegramSettingsModal() {
 }
 
 function closeTelegramSettingsModal() {
-  document.getElementById('telegramSettingsModal').classList.remove('show');
+  closeModal('telegramSettingsModal');
 }
 
 async function saveTelegramSettings() {
