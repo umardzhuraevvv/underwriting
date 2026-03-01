@@ -10,7 +10,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
 from app.database import get_db, User, Anketa, AnketaHistory, UnderwritingRule, RiskRule, EditRequest, Role, SystemSettings
-from app.auth import require_admin, require_permission, hash_password, generate_password, get_user_permissions
+from app.auth import require_permission, hash_password, generate_password, get_user_permissions
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -105,8 +105,6 @@ def update_role(
     role = db.query(Role).filter(Role.id == role_id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Должность не найдена")
-    if role.is_system:
-        raise HTTPException(status_code=400, detail="Системную должность нельзя редактировать")
     if body.name is not None:
         dup = db.query(Role).filter(Role.name == body.name.strip(), Role.id != role_id).first()
         if dup:
@@ -130,8 +128,6 @@ def delete_role(
     role = db.query(Role).filter(Role.id == role_id).first()
     if not role:
         raise HTTPException(status_code=404, detail="Должность не найдена")
-    if role.is_system:
-        raise HTTPException(status_code=400, detail="Системную должность нельзя удалить")
     linked = db.query(User).filter(User.role_id == role_id).count()
     if linked > 0:
         raise HTTPException(status_code=400, detail=f"Нельзя удалить — {linked} пользователь(ей) привязано к этой должности")
@@ -164,6 +160,7 @@ class UserOut(BaseModel):
     role_id: Optional[int] = None
     role_name: Optional[str] = None
     is_active: bool
+    is_superadmin: bool = False
     created_at: Optional[str] = None
     telegram_chat_id: Optional[str] = None
 
@@ -178,7 +175,7 @@ def user_to_out(u: User) -> UserOut:
     return UserOut(
         id=u.id, email=u.email, full_name=u.full_name,
         role=u.role, role_id=u.role_id, role_name=role_name,
-        is_active=u.is_active,
+        is_active=u.is_active, is_superadmin=u.is_superadmin or False,
         created_at=u.created_at.isoformat() if u.created_at else None,
         telegram_chat_id=u.telegram_chat_id,
     )
@@ -238,6 +235,8 @@ def update_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if user.is_superadmin and admin.id != user.id:
+        raise HTTPException(status_code=403, detail="Нельзя изменить суперадмина")
 
     if body.full_name is not None:
         user.full_name = body.full_name
@@ -285,6 +284,8 @@ def delete_user(
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Нельзя удалить суперадмина")
     if user.id == admin.id:
         raise HTTPException(status_code=400, detail="Нельзя удалить самого себя")
 

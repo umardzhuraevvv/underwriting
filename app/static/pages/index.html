@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon_32.png">
   <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon_64.png">
   <link rel="apple-touch-icon" href="/static/favicon_64.png">
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=2">
   <script src="/static/js/qrcode.min.js"></script>
   <script>if(localStorage.getItem('sidebarCollapsed')==='1')document.documentElement.classList.add('sidebar-pre-collapsed');</script>
   <script>if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
@@ -18,9 +18,11 @@
 <!-- SIDEBAR -->
 <aside class="sidebar" id="sidebar">
   <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()" title="Свернуть/Развернуть">
-    <svg class="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-    </svg>
+    <div class="burger-icon">
+      <span class="burger-line burger-line-1"></span>
+      <span class="burger-line burger-line-2"></span>
+      <span class="burger-line burger-line-3"></span>
+    </div>
   </button>
   <div class="sidebar-logo">
     <div class="logo-badge">
@@ -1718,6 +1720,6 @@
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="/static/js/app.js"></script>
+<script src="/static/js/app.js?v=4"></script>
 </body>
 </html>

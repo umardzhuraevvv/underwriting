@@ -415,8 +415,6 @@ function initApp() {
   // Restore theme icon
   updateThemeIcon(localStorage.getItem('theme') || 'light');
 
-  // Show welcome banner
-  showBanner('Добро пожаловать в систему андеррайтинга Fintech Drive!');
 
   // Set user info in sidebar
   const initials = user.full_name
@@ -430,17 +428,17 @@ function initApp() {
   document.getElementById('userName').textContent = user.full_name;
 
   const perms = user.permissions || {};
-  document.getElementById('userRole').textContent = user.role_name || (user.role === 'admin' ? 'Администратор' : 'Инспектор');
+  document.getElementById('userRole').textContent = user.role_name || 'Сотрудник';
 
   // Set tooltip for collapsed sidebar
   const sidebarUser = document.querySelector('.sidebar-user');
   if (sidebarUser) sidebarUser.setAttribute('data-tooltip', user.full_name);
 
   // Permissions-based UI visibility
-  const hasUserManage = perms.user_manage || user.role === 'admin';
-  const hasRulesManage = perms.rules_manage || user.role === 'admin';
-  const hasAnalyticsView = perms.analytics_view || user.role === 'admin';
-  const hasExportExcel = perms.export_excel || user.role === 'admin';
+  const hasUserManage = perms.user_manage;
+  const hasRulesManage = perms.rules_manage;
+  const hasAnalyticsView = perms.analytics_view;
+  const hasExportExcel = perms.export_excel;
 
   if (!hasUserManage && !hasRulesManage) {
     document.getElementById('adminSection').style.display = 'none';
@@ -489,19 +487,19 @@ function initApp() {
   const path = window.location.pathname;
   const anketaMatch = path.match(/^\/anketa\/(\d+)$/);
   if (path === '/admin/risk-rules') {
-    if (user.role === 'admin') {
+    if (perms.rules_manage) {
       navigate('risk-rules');
     } else {
       navigate('dashboard');
     }
   } else if (path === '/admin/rules') {
-    if (user.role === 'admin') {
+    if (perms.rules_manage) {
       navigate('rules');
     } else {
       navigate('dashboard');
     }
   } else if (path === '/admin') {
-    if (user.role === 'admin') {
+    if (perms.user_manage) {
       navigate('users');
     } else {
       navigate('dashboard');
@@ -534,7 +532,7 @@ let usersData = [];
 async function loadUsers() {
   const user = getUser();
   const _p = user && user.permissions;
-  if (!user || (!(_p && _p.user_manage) && user.role !== 'admin')) {
+  if (!user || !(_p && _p.user_manage)) {
     navigate('dashboard');
     return;
   }
@@ -560,10 +558,9 @@ function renderUsersTable() {
   }
 
   tbody.innerHTML = usersData.map(u => {
-    const roleName = u.role_name || (u.role === 'admin' ? 'Администратор' : 'Инспектор');
-    const roleBadge = u.role === 'admin'
-      ? `<span class="role-badge role-admin">${escapeHtml(roleName)}</span>`
-      : `<span class="role-badge role-inspector">${escapeHtml(roleName)}</span>`;
+    const roleName = u.role_name || 'Сотрудник';
+    const superBadge = u.is_superadmin ? '<div style="margin-top:2px"><span style="font-size:10px;background:var(--primary);color:#fff;padding:2px 8px;border-radius:4px;font-weight:600">Суперадмин</span></div>' : '';
+    const roleBadge = `<span class="role-badge ${u.is_superadmin ? 'role-admin' : 'role-inspector'}">${escapeHtml(roleName)}</span>`;
 
     const statusBadge = u.is_active
       ? '<span class="status-badge status-active"><span class="status-dot"></span>Активен</span>'
@@ -575,7 +572,7 @@ function renderUsersTable() {
 
     return `
       <tr>
-        <td><div class="td-main">${escapeHtml(u.full_name)}</div></td>
+        <td><div class="td-main">${escapeHtml(u.full_name)}${superBadge}</div></td>
         <td><code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;background:var(--bg);padding:2px 8px;border-radius:4px">${escapeHtml(u.email)}</code></td>
         <td>${roleBadge}</td>
         <td>${statusBadge}</td>
@@ -2609,7 +2606,8 @@ async function loadVerdictRules() {
 
 async function loadRules() {
   const user = getUser();
-  if (!user || user.role !== 'admin') {
+  const _p = user && user.permissions;
+  if (!user || !(_p && _p.rules_manage)) {
     navigate('dashboard');
     return;
   }
@@ -2922,7 +2920,8 @@ async function downloadExcel() {
 
 async function loadRiskRules() {
   const user = getUser();
-  if (!user || user.role !== 'admin') {
+  const _p = user && user.permissions;
+  if (!user || !(_p && _p.rules_manage)) {
     navigate('dashboard');
     return;
   }
@@ -3251,7 +3250,7 @@ function renderEditRequests(requests) {
   }
 
   const statusLabels = { pending: 'Ожидает', approved: 'Одобрен', rejected: 'Отклонён' };
-  const isAdmin = currentUser && currentUser.role === 'admin';
+  const isAdmin = currentUser && (currentUser.permissions?.user_manage || currentUser.is_superadmin);
 
   container.innerHTML = requests.map(r => {
     const statusLabel = statusLabels[r.status] || r.status;
@@ -3324,7 +3323,7 @@ async function loadPendingRequestsCount() {
   if (!currentUser) return;
 
   const _perms = currentUser.permissions || {};
-  if (_perms.user_manage || currentUser.role === 'admin') {
+  if (_perms.user_manage) {
     try {
       const res = await fetch('/api/admin/edit-requests/count', { headers: authHeaders() });
       if (res.ok) {
@@ -4394,9 +4393,7 @@ function renderRolesTable() {
       `<td style="text-align:center">${r[k] ? '<span style="color:var(--green);font-weight:600">✓</span>' : '<span style="color:var(--text-light)">—</span>'}</td>`
     ).join('');
     const sysLabel = r.is_system ? ' <span style="font-size:10px;color:var(--text-light)">(системная)</span>' : '';
-    const actions = r.is_system
-      ? '<span style="color:var(--text-light);font-size:12px">Системная</span>'
-      : `<button class="btn btn-outline btn-sm" onclick="openEditRoleModal(${r.id})">Изменить</button>
+    const actions = `<button class="btn btn-outline btn-sm" onclick="openEditRoleModal(${r.id})">Изменить</button>
          <button class="btn btn-sm btn-danger" onclick="deleteRole(${r.id})">Удалить</button>`;
     return `<tr><td><strong>${escapeHtml(r.name)}</strong>${sysLabel}</td>${permCells}<td><div style="display:flex;gap:6px">${actions}</div></td></tr>`;
   }).join('');
@@ -4488,7 +4485,7 @@ let _empStatsTo = '';
 
 async function loadEmployeeStats() {
   const perms = currentUser && currentUser.permissions;
-  if (!perms || (!perms.analytics_view && currentUser.role !== 'admin')) {
+  if (!perms || !perms.analytics_view) {
     navigate('dashboard');
     return;
   }

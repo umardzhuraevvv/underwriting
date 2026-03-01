@@ -25,6 +25,7 @@ class UserResponse(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    is_superadmin: bool = False
     role_name: str | None = None
     permissions: dict | None = None
 
@@ -50,6 +51,7 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
             "role": user.role,
             "role_name": role_name,
             "permissions": perms,
+            "is_superadmin": user.is_superadmin or False,
         },
     )
 
@@ -64,6 +66,7 @@ def me(user: User = Depends(get_current_user), db: Session = Depends(get_db)):
         full_name=user.full_name,
         role=user.role,
         is_active=user.is_active,
+        is_superadmin=user.is_superadmin or False,
         role_name=role_name,
         permissions=perms,
     )

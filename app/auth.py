@@ -66,12 +66,6 @@ def get_current_user(
     return user
 
 
-def require_admin(user: User = Depends(get_current_user)) -> User:
-    if user.role != "admin":
-        raise HTTPException(status_code=403, detail="Требуются права администратора")
-    return user
-
-
 PERMISSION_KEYS = [
     "anketa_create", "anketa_edit", "anketa_view_all", "anketa_conclude",
     "anketa_delete", "user_manage", "analytics_view", "export_excel", "rules_manage",
@@ -79,8 +73,10 @@ PERMISSION_KEYS = [
 
 
 def get_user_permissions(user: User, db: Session) -> dict:
-    """Get permissions dict for user. Reads from user.position (Role), fallback to user.role string."""
-    # If user has a Role assigned, read from it
+    """Get permissions dict for user. Superadmin always gets all. Otherwise reads from Role."""
+    if user.is_superadmin:
+        return {k: True for k in PERMISSION_KEYS}
+
     if user.role_id:
         role = db.query(Role).filter(Role.id == user.role_id).first()
         if role:

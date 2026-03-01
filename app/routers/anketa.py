@@ -11,7 +11,7 @@ from pydantic import BaseModel, BeforeValidator
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func
 
-from app.database import get_db, Anketa, User, UnderwritingRule, AnketaHistory, RiskRule, EditRequest, Notification, AnketaViewLog
+from app.database import get_db, Anketa, User, Role, UnderwritingRule, AnketaHistory, RiskRule, EditRequest, Notification, AnketaViewLog
 from app.auth import get_current_user, get_user_permissions
 
 
@@ -848,7 +848,7 @@ def check_anketa_access(anketa: Anketa, user: User, db: Session = None):
         perms = get_user_permissions(user, db)
         if perms.get("anketa_view_all"):
             return
-    elif user.role == "admin":
+    elif user.is_superadmin:
         return
     raise HTTPException(status_code=403, detail="Нет доступа к этой анкете")
 
@@ -1473,15 +1473,23 @@ def save_anketa(
         dupe_ids = ", ".join([f"#{d['id']}" for d in dupes])
         msg = f"Анкета #{anketa.id} имеет совпадения с: {dupe_ids}"
         create_notification(db, anketa.created_by, "duplicate_detected", "Обнаружены дубликаты", msg, anketa.id)
-        # Notify all active admins
-        admins = db.query(User).filter(User.role == "admin", User.is_active == True).all()
+        # Notify all users with user_manage permission
+        admin_role_ids = [r.id for r in db.query(Role).filter(Role.user_manage == True).all()]
+        admins = db.query(User).filter(
+            User.is_active == True,
+            (User.role_id.in_(admin_role_ids)) | (User.is_superadmin == True)
+        ).all()
         for adm in admins:
             if adm.id != anketa.created_by:
                 create_notification(db, adm.id, "duplicate_detected", "Обнаружены дубликаты", msg, anketa.id)
 
     # Telegram: notify admins about new saved anketa
     from app.telegram_service import notify_telegram_many
-    admin_users = db.query(User).filter(User.role == "admin", User.is_active == True).all()
+    admin_role_ids_tg = [r.id for r in db.query(Role).filter(Role.user_manage == True).all()]
+    admin_users = db.query(User).filter(
+        User.is_active == True,
+        (User.role_id.in_(admin_role_ids_tg)) | (User.is_superadmin == True)
+    ).all()
     admin_ids = [a.id for a in admin_users if a.id != user.id]
     client_name = anketa.full_name or anketa.company_name or f"#{anketa.id}"
     if admin_ids:
@@ -1668,8 +1676,12 @@ def create_edit_request(
     )
     db.add(req)
 
-    # Notify all active admins
-    admins = db.query(User).filter(User.role == "admin", User.is_active == True).all()
+    # Notify all users with user_manage permission
+    admin_role_ids_er = [r.id for r in db.query(Role).filter(Role.user_manage == True).all()]
+    admins = db.query(User).filter(
+        User.is_active == True,
+        (User.role_id.in_(admin_role_ids_er)) | (User.is_superadmin == True)
+    ).all()
     for adm in admins:
         create_notification(
             db, adm.id, "edit_request_created",

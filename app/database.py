@@ -53,6 +53,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     role = Column(String(20), nullable=False)  # admin | inspector (backward compat)
     is_active = Column(Boolean, default=True, nullable=False)
+    is_superadmin = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
     role_id = Column(Integer, ForeignKey("roles.id"))
     telegram_chat_id = Column(String(50))
@@ -387,6 +388,7 @@ def init_db():
     user_new_columns = [
         ("role_id", "INTEGER REFERENCES roles(id)"),
         ("telegram_chat_id", "VARCHAR(50)"),
+        ("is_superadmin", "BOOLEAN DEFAULT FALSE"),
     ]
     with engine.connect() as conn:
         for col_name, col_type in user_new_columns:
@@ -446,8 +448,12 @@ def init_db():
                 role="admin",
                 is_active=True,
                 role_id=admin_role.id,
+                is_superadmin=True,
             )
             db.add(admin)
+            db.commit()
+        elif not existing.is_superadmin:
+            existing.is_superadmin = True
             db.commit()
 
         # Seed risk rules if table is empty
