@@ -50,6 +50,72 @@ function formatInputNumber(input) {
   input.setSelectionRange(newPos, newPos);
 }
 
+// ---------- TIMEZONE HELPERS (Asia/Tashkent, UTC+5) ----------
+
+const APP_TZ = 'Asia/Tashkent';
+function fmtDate(v) { if (!v) return '—'; try { return new Date(v).toLocaleDateString('ru-RU', {timeZone: APP_TZ}); } catch(e) { return String(v); } }
+function fmtDateTime(v) { if (!v) return '—'; try { return new Date(v).toLocaleString('ru-RU', {timeZone: APP_TZ}); } catch(e) { return String(v); } }
+
+// ---------- SKELETON / EMPTY / ERROR HELPERS ----------
+
+function showSkeleton(containerId, type, cols) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  if (type === 'table-rows') {
+    const c = cols || 5;
+    let html = '';
+    for (let i = 0; i < 5; i++) {
+      html += '<tr>';
+      for (let j = 0; j < c; j++) {
+        const w = j === 0 ? 'w60' : (j === c - 1 ? 'w40' : 'w80');
+        html += `<td style="padding:13px 16px"><div class="skeleton-line ${w}" style="animation-delay:${i * 0.1}s"></div></td>`;
+      }
+      html += '</tr>';
+    }
+    el.innerHTML = html;
+  } else if (type === 'stat-cards') {
+    let html = '';
+    for (let i = 0; i < 4; i++) {
+      html += `<div class="skeleton-card"><div class="skeleton-circle" style="animation-delay:${i * 0.15}s"></div><div class="skeleton-block"><div class="skeleton-line w60" style="animation-delay:${i * 0.15}s"></div><div class="skeleton-line w40" style="height:22px;animation-delay:${i * 0.15 + 0.05}s"></div></div></div>`;
+    }
+    el.innerHTML = html;
+  } else if (type === 'cards') {
+    let html = '';
+    for (let i = 0; i < 3; i++) {
+      html += `<div class="card" style="padding:20px;margin-bottom:12px"><div class="skeleton-line w80" style="margin-bottom:12px;height:16px;animation-delay:${i * 0.1}s"></div><div class="skeleton-line w100" style="margin-bottom:8px;animation-delay:${i * 0.1 + 0.05}s"></div><div class="skeleton-line w60" style="animation-delay:${i * 0.1 + 0.1}s"></div></div>`;
+    }
+    el.innerHTML = html;
+  }
+}
+
+const EMPTY_ICONS = {
+  documents: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+  users: '<svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  rules: '<svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  requests: '<svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>',
+  chart: '<svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+};
+
+function buildEmptyState(icon, text, sub, actionLabel, actionOnclick) {
+  const svg = EMPTY_ICONS[icon] || EMPTY_ICONS.documents;
+  let html = `<div class="empty-state"><div class="empty-state-icon">${svg}</div><div class="empty-state-text">${text}</div>`;
+  if (sub) html += `<div class="empty-state-sub">${sub}</div>`;
+  if (actionLabel && actionOnclick) html += `<button class="btn btn-primary btn-sm" onclick="${actionOnclick}">${actionLabel}</button>`;
+  html += '</div>';
+  return html;
+}
+
+function showErrorState(containerId, message, retryFn, isTableBody, colSpan) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const errHtml = `<div class="error-state"><div class="error-state-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div><div class="error-state-text">${message}</div><div class="error-state-sub">Проверьте соединение и попробуйте снова</div><button class="btn btn-outline btn-sm" onclick="${retryFn}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg> Повторить</button></div>`;
+  if (isTableBody) {
+    el.innerHTML = `<tr><td colspan="${colSpan || 6}">${errHtml}</td></tr>`;
+  } else {
+    el.innerHTML = `<div class="card">${errHtml}</div>`;
+  }
+}
+
 function initMoneyFields() {
   MONEY_FIELDS.forEach(field => {
     const el = document.getElementById('f-' + field);
@@ -262,12 +328,43 @@ function showToast(message, type = 'success') {
   }, 4000);
 }
 
+// ---------- MOBILE SIDEBAR ----------
+
+function openMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (sidebar) sidebar.classList.add('mobile-open');
+  if (backdrop) backdrop.classList.add('show');
+}
+
+function closeMobileSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebarBackdrop');
+  if (sidebar) sidebar.classList.remove('mobile-open');
+  if (backdrop) backdrop.classList.remove('show');
+}
+
+// ---------- PURCHASE PURPOSE CUSTOM INPUT ----------
+
+function onPurchasePurposeChange(sel) {
+  const customInput = document.getElementById('f-purchase_purpose_custom');
+  if (!customInput) return;
+  if (sel.value === '__custom') {
+    customInput.style.display = 'block';
+    customInput.focus();
+  } else {
+    customInput.style.display = 'none';
+    customInput.value = '';
+  }
+}
+
 // ---------- NAVIGATION ----------
 
 let currentPage = 'dashboard';
 
 function navigate(page, data) {
   currentPage = page;
+  closeMobileSidebar();
 
   // Hide all pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -537,6 +634,8 @@ async function loadUsers() {
     return;
   }
 
+  showSkeleton('usersTableBody', 'table-rows', 6);
+
   try {
     const res = await fetch('/api/admin/users', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
@@ -545,7 +644,8 @@ async function loadUsers() {
     usersData = await res.json();
     renderUsersTable();
   } catch (err) {
-    showToast('Ошибка загрузки пользователей', 'error');
+    showToast('Ошибка загрузки', 'error');
+    showErrorState('usersTableBody', 'Ошибка загрузки пользователей', 'loadUsers()', true, 6);
   }
 }
 
@@ -553,22 +653,20 @@ function renderUsersTable() {
   const tbody = document.getElementById('usersTableBody');
 
   if (usersData.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light)">Нет пользователей</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">' + buildEmptyState('users', 'Нет пользователей', 'Добавьте первого пользователя', '+ Новый пользователь', 'openCreateUserModal()') + '</td></tr>';
     return;
   }
 
   tbody.innerHTML = usersData.map(u => {
     const roleName = u.role_name || 'Сотрудник';
-    const superBadge = u.is_superadmin ? '<div style="margin-top:2px"><span style="font-size:10px;background:var(--primary);color:#fff;padding:2px 8px;border-radius:4px;font-weight:600">Суперадмин</span></div>' : '';
+    const superBadge = u.is_superadmin ? '<div style="margin-top:2px"><span style="font-size:10px;background:var(--purple);color:#fff;padding:2px 8px;border-radius:4px;font-weight:600">Суперадмин</span></div>' : '';
     const roleBadge = `<span class="role-badge ${u.is_superadmin ? 'role-admin' : 'role-inspector'}">${escapeHtml(roleName)}</span>`;
 
     const statusBadge = u.is_active
       ? '<span class="status-badge status-active"><span class="status-dot"></span>Активен</span>'
       : '<span class="status-badge status-inactive"><span class="status-dot"></span>Неактивен</span>';
 
-    const created = u.created_at
-      ? new Date(u.created_at).toLocaleDateString('ru-RU')
-      : '—';
+    const created = fmtDate(u.created_at);
 
     return `
       <tr>
@@ -777,8 +875,11 @@ async function deleteUser(userId) {
     if (res.status === 401) { logout(); return; }
 
     if (!res.ok) {
-      const data = await res.json();
-      const msg = typeof data.detail === 'string' ? data.detail : 'Ошибка удаления';
+      let msg = 'Ошибка удаления';
+      try {
+        const data = await res.json();
+        if (typeof data.detail === 'string') msg = data.detail;
+      } catch(e) {}
       throw new Error(msg);
     }
 
@@ -909,6 +1010,8 @@ function selectClientType(type) {
 // ---------- ANKETA: LIST ----------
 
 async function loadAnketas() {
+  showSkeleton('anketyTableBody', 'table-rows', 7);
+
   try {
     const res = await fetch('/api/anketas', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
@@ -922,13 +1025,14 @@ async function loadAnketas() {
     if (badge) badge.textContent = anketasData.length;
   } catch (err) {
     showToast('Ошибка загрузки анкет', 'error');
+    showErrorState('anketyTableBody', 'Ошибка загрузки анкет', 'loadAnketas()', true, 7);
   }
 }
 
 function renderAnketasTable(data) {
   const tbody = document.getElementById('anketyTableBody');
   if (!data || data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-light)">Анкеты пока не созданы. Нажмите «+ Новая анкета»</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7">' + buildEmptyState('documents', 'Анкеты пока не созданы', 'Создайте первую анкету клиента', '+ Новая анкета', "navigate('new-anketa')") + '</td></tr>';
     return;
   }
 
@@ -942,7 +1046,7 @@ function renderAnketasTable(data) {
     const car = (a.car_brand && a.car_model)
       ? escapeHtml(a.car_brand + ' ' + a.car_model) + (a.car_year ? ' ' + a.car_year : '')
       : '—';
-    const created = a.created_at ? new Date(a.created_at).toLocaleDateString('ru-RU') : '—';
+    const created = fmtDate(a.created_at);
     const creator = a.creator_name ? escapeHtml(a.creator_name) : '—';
 
     // Delete button — for own anketas or users with anketa_delete permission, not already deleted
@@ -1066,6 +1170,18 @@ function fillAnketaForm(data) {
     }
   });
 
+  // Handle custom purchase purpose: if value doesn't match any option, set to custom
+  const ppSelect = document.getElementById('f-purchase_purpose');
+  const ppCustom = document.getElementById('f-purchase_purpose_custom');
+  if (ppSelect && ppCustom && data.purchase_purpose) {
+    const hasOption = Array.from(ppSelect.options).some(o => o.value === data.purchase_purpose);
+    if (!hasOption) {
+      ppSelect.value = '__custom';
+      ppCustom.value = data.purchase_purpose;
+      ppCustom.style.display = 'block';
+    }
+  }
+
   // Fill read-only calculated fields
   const calcFields = ['down_payment_amount', 'remaining_amount', 'monthly_payment', 'total_monthly_income', 'overdue_check_result'];
   calcFields.forEach(field => {
@@ -1138,6 +1254,9 @@ function resetAnketaForm() {
     const el = document.getElementById('f-' + f);
     if (el) el.value = '';
   });
+  // Reset custom purchase purpose
+  const ppCustom = document.getElementById('f-purchase_purpose_custom');
+  if (ppCustom) { ppCustom.value = ''; ppCustom.style.display = 'none'; }
   // Reset relative phones to 1 empty row
   fillRelativePhones(null);
   // Reset LE fields
@@ -1206,6 +1325,11 @@ function collectAnketaData() {
       data[field] = el.value || null;
     }
   });
+  // Handle custom purchase purpose
+  if (data.purchase_purpose === '__custom') {
+    const customVal = document.getElementById('f-purchase_purpose_custom');
+    data.purchase_purpose = customVal ? (customVal.value.trim() || null) : null;
+  }
   // Collect relative phones as JSON
   data.relative_phones = JSON.stringify(collectRelativePhones());
 
@@ -2160,7 +2284,7 @@ function renderConclusionPanel(data) {
     };
     const label = decisionLabels[data.decision] || data.decision;
     const concluder = data.concluder_name || '—';
-    const concludedAt = data.concluded_at ? new Date(data.concluded_at).toLocaleString('ru-RU') : '—';
+    const concludedAt = fmtDateTime(data.concluded_at);
     const comment = data.conclusion_comment ? `<div class="conclusion-result-comment">${escapeHtml(data.conclusion_comment)}</div>` : '';
     const finalPvHtml = data.final_pv != null ? `<div class="conclusion-result-comment" style="font-weight:600">Итоговый ПВ: ${data.final_pv}%</div>` : '';
 
@@ -2428,6 +2552,8 @@ async function loadDashboardStats() {
     url += '&client_type=' + encodeURIComponent(_dashboardClientType);
   }
 
+  showSkeleton('dashboardStats', 'stat-cards');
+
   try {
     const res = await fetch(url, { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
@@ -2438,6 +2564,7 @@ async function loadDashboardStats() {
     loadAnalytics();
   } catch (err) {
     console.error('Dashboard error:', err);
+    showErrorState('dashboardStats', 'Ошибка загрузки статистики', 'loadDashboardStats()');
   }
 }
 
@@ -2611,6 +2738,7 @@ async function loadRules() {
     navigate('dashboard');
     return;
   }
+  showSkeleton('rulesContainer', 'cards');
   try {
     const res = await fetch('/api/admin/rules', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
@@ -2619,6 +2747,7 @@ async function loadRules() {
     renderRules();
   } catch (err) {
     showToast('Ошибка загрузки правил', 'error');
+    showErrorState('rulesContainer', 'Ошибка загрузки правил', 'loadRules()');
   }
 }
 
@@ -2925,6 +3054,7 @@ async function loadRiskRules() {
     navigate('dashboard');
     return;
   }
+  showSkeleton('riskRulesContainer', 'cards');
   try {
     const res = await fetch('/api/admin/risk-rules', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
@@ -2933,6 +3063,7 @@ async function loadRiskRules() {
     renderRiskRules();
   } catch (err) {
     showToast('Ошибка загрузки риск-правил', 'error');
+    showErrorState('riskRulesContainer', 'Ошибка загрузки правил', 'loadRiskRules()');
   }
 }
 
@@ -2941,7 +3072,7 @@ function renderRiskRules() {
   if (!container) return;
 
   if (!riskRulesData.length) {
-    container.innerHTML = '<div class="card"><div class="empty-state"><div class="empty-state-text">Нет риск-правил</div></div></div>';
+    container.innerHTML = buildEmptyState('rules', 'Нет риск-правил', 'Добавьте правило для оценки рисков');
     return;
   }
 
@@ -3228,6 +3359,8 @@ async function loadEditRequests() {
   const status = filterEl ? filterEl.value : 'pending';
   const url = '/api/anketas/edit-requests' + (status ? '?status=' + status : '');
 
+  showSkeleton('editRequestsContainer', 'cards');
+
   try {
     const res = await fetch(url, { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
@@ -3237,6 +3370,7 @@ async function loadEditRequests() {
     renderEditRequests(requests);
   } catch (err) {
     showToast('Ошибка загрузки запросов', 'error');
+    showErrorState('editRequestsContainer', 'Ошибка загрузки', 'loadEditRequests()');
   }
 }
 
@@ -3245,7 +3379,7 @@ function renderEditRequests(requests) {
   if (!container) return;
 
   if (!requests || requests.length === 0) {
-    container.innerHTML = '<div class="card"><div class="empty-state"><div class="empty-state-icon" style="font-size:36px;opacity:0.3">&#10003;</div><div class="empty-state-text">Запросов нет</div></div></div>';
+    container.innerHTML = buildEmptyState('requests', 'Запросов нет', 'Все запросы обработаны');
     return;
   }
 
@@ -3254,8 +3388,8 @@ function renderEditRequests(requests) {
 
   container.innerHTML = requests.map(r => {
     const statusLabel = statusLabels[r.status] || r.status;
-    const created = r.created_at ? new Date(r.created_at).toLocaleString('ru-RU') : '—';
-    const reviewed = r.reviewed_at ? new Date(r.reviewed_at).toLocaleString('ru-RU') : '';
+    const created = fmtDateTime(r.created_at);
+    const reviewed = r.reviewed_at ? fmtDateTime(r.reviewed_at) : '';
     const clientName = r.anketa_client_name || 'Анкета #' + r.anketa_id;
 
     let actionsHtml = '';
@@ -3516,7 +3650,7 @@ function renderViewLog(log) {
   let html = '<table class="history-table"><thead><tr><th>Кто</th><th>Когда</th></tr></thead><tbody>';
   log.forEach(v => {
     const who = v.user_name || '—';
-    const when = v.viewed_at ? new Date(v.viewed_at).toLocaleString('ru-RU') : '—';
+    const when = fmtDateTime(v.viewed_at);
     html += `<tr><td>${escapeHtml(who)}</td><td style="white-space:nowrap">${when}</td></tr>`;
   });
   html += '</tbody></table>';
@@ -3538,7 +3672,7 @@ function renderAnketaHistory(history) {
     const oldVal = h.old_value || '—';
     const newVal = h.new_value || '—';
     const who = h.changed_by_name || '—';
-    const when = h.changed_at ? new Date(h.changed_at).toLocaleString('ru-RU') : '—';
+    const when = fmtDateTime(h.changed_at);
     html += `<tr>
       <td style="font-weight:500">${escapeHtml(label)}</td>
       <td><span class="history-old">${escapeHtml(oldVal)}</span></td>
@@ -4119,7 +4253,7 @@ function _pv(val, suffix) {
 
 function _pd(val) {
   if (!val) return '—';
-  try { return new Date(val).toLocaleDateString('ru-RU'); } catch(e) { return String(val); }
+  return fmtDate(val);
 }
 
 function _pn(val, suffix) {
@@ -4127,12 +4261,17 @@ function _pn(val, suffix) {
   return formatNumber(val) + (suffix || '');
 }
 
+let _printRowIdx = 0;
+
 function _printRow(label, value) {
-  return `<tr><td style="padding:4px 8px;font-size:11px;color:#555;width:220px;border-bottom:1px solid #eee">${label}</td><td style="padding:4px 8px;font-size:11px;font-weight:500;border-bottom:1px solid #eee">${value}</td></tr>`;
+  _printRowIdx++;
+  const bg = _printRowIdx % 2 === 0 ? '#f9f8fc' : '#fff';
+  return `<tr style="background:${bg}"><td style="padding:3px 8px;font-size:10px;color:#555;width:190px;border-bottom:1px solid #eee;word-wrap:break-word">${label}</td><td style="padding:3px 8px;font-size:10px;font-weight:500;border-bottom:1px solid #eee;word-wrap:break-word;max-width:0">${value}</td></tr>`;
 }
 
 function _printSection(title) {
-  return `<tr><td colspan="2" style="padding:10px 8px 4px;font-size:12px;font-weight:700;background:#f5f3fa;border-bottom:1px solid #ddd">${title}</td></tr>`;
+  _printRowIdx = 0;
+  return `<tr><td colspan="2" style="padding:7px 8px 4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;background:#f0ecf5;border-bottom:1px solid #ddd">${title}</td></tr>`;
 }
 
 function buildPrintContent(data) {
@@ -4291,10 +4430,10 @@ function buildPrintContent(data) {
   rows += _printRow('Итоговый ПВ', data.final_pv != null ? data.final_pv + '%' : '—');
   rows += _printRow('Комментарий', _pv(data.conclusion_comment));
   rows += _printRow('Андеррайтер', _pv(data.concluder_name));
-  rows += _printRow('Дата заключения', data.concluded_at ? new Date(data.concluded_at).toLocaleString('ru-RU') : '—');
+  rows += _printRow('Дата заключения', fmtDateTime(data.concluded_at));
   rows += _printRow('Версия', _pv(data.conclusion_version));
 
-  return `<table style="width:100%;border-collapse:collapse">${rows}</table>`;
+  return `<table style="width:100%;border-collapse:collapse;table-layout:fixed">${rows}</table>`;
 }
 
 function printAnketa() {
@@ -4317,7 +4456,7 @@ function printAnketa() {
     (isLegal ? 'Юр. лицо' : 'Физ. лицо') + ' — ' + clientName;
 
   // Meta info line
-  const created = data.created_at ? new Date(data.created_at).toLocaleString('ru-RU') : '—';
+  const created = fmtDateTime(data.created_at);
   document.getElementById('printMeta').innerHTML =
     `Анкета #${data.id} | Статус: ${statusLabel} | Создана: ${created} | Автор: ${escapeHtml(data.creator_name || '—')}`;
 
@@ -4336,6 +4475,15 @@ function printAnketa() {
     console.error('QR error:', e);
   }
 
+  // Print footer date
+  const footerDate = document.getElementById('printFooterDate');
+  if (footerDate) footerDate.textContent = 'Дата печати: ' + fmtDateTime(new Date());
+
+  // Set document title for PDF filename: "ФИО_ПИНФЛ" or "Компания_ИНН"
+  const origTitle = document.title;
+  const pdfId = isLegal ? (data.company_inn || '') : (data.pinfl || '');
+  document.title = clientName + (pdfId ? '_' + pdfId : '');
+
   // Build full print content and inject
   const printBody = document.getElementById('printFullBody');
   if (printBody) {
@@ -4345,7 +4493,8 @@ function printAnketa() {
 
   setTimeout(() => {
     window.print();
-    // Hide print body after printing
+    // Restore title and hide print body after printing
+    document.title = origTitle;
     if (printBody) printBody.style.display = 'none';
   }, 200);
 }
@@ -4356,6 +4505,8 @@ function printAnketa() {
 let rolesData = [];
 
 async function loadRoles() {
+  showSkeleton('rolesTableBody', 'table-rows', 11);
+
   try {
     const res = await fetch('/api/admin/roles', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
@@ -4365,6 +4516,7 @@ async function loadRoles() {
     renderRolesTable();
   } catch (err) {
     showToast('Ошибка загрузки должностей', 'error');
+    showErrorState('rolesTableBody', 'Ошибка загрузки', 'loadRoles()', true, 11);
   }
 }
 
@@ -4493,6 +4645,7 @@ async function loadEmployeeStats() {
   if (_empStatsPeriod === 'custom' && _empStatsFrom && _empStatsTo) {
     url += '&date_from=' + _empStatsFrom + '&date_to=' + _empStatsTo;
   }
+  showSkeleton('empStatsTableBody', 'table-rows', 8);
   try {
     const res = await fetch(url, { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
@@ -4502,6 +4655,7 @@ async function loadEmployeeStats() {
     renderEmployeeStats(data);
   } catch (err) {
     showToast('Ошибка загрузки аналитики', 'error');
+    showErrorState('empStatsTableBody', 'Ошибка загрузки', 'loadEmployeeStats()', true, 8);
   }
 }
 

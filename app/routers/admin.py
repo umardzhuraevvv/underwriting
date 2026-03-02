@@ -289,6 +289,14 @@ def delete_user(
     if user.id == admin.id:
         raise HTTPException(status_code=400, detail="Нельзя удалить самого себя")
 
+    # Check if user has related records (anketas, history, etc.)
+    has_anketas = db.query(Anketa).filter(Anketa.created_by == user_id).first()
+    if has_anketas:
+        raise HTTPException(
+            status_code=409,
+            detail="Нельзя удалить — у пользователя есть анкеты. Деактивируйте его вместо удаления."
+        )
+
     db.delete(user)
     db.commit()
     return {"detail": "Пользователь удалён"}

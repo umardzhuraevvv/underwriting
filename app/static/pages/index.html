@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon_32.png">
   <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon_64.png">
   <link rel="apple-touch-icon" href="/static/favicon_64.png">
-  <link rel="stylesheet" href="/static/css/style.css?v=2">
+  <link rel="stylesheet" href="/static/css/style.css?v=5">
   <script src="/static/js/qrcode.min.js"></script>
   <script>if(localStorage.getItem('sidebarCollapsed')==='1')document.documentElement.classList.add('sidebar-pre-collapsed');</script>
   <script>if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
@@ -124,6 +124,7 @@
     </div>
   </div>
 </aside>
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeMobileSidebar()"></div>
 
 <!-- MAIN CONTENT -->
 <main class="main">
@@ -233,6 +234,7 @@
         <button class="btn btn-outline btn-sm" onclick="clearAnketaFilters()" style="height:34px;margin-bottom:1px">Сбросить</button>
       </div>
       <div class="card anketa-table">
+        <div class="table-scroll">
         <table>
           <thead>
             <tr>
@@ -249,6 +251,7 @@
             <tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>
@@ -390,13 +393,14 @@
             </div>
             <div class="form-group">
               <label class="form-label">Цель покупки</label>
-              <select class="form-input" id="f-purchase_purpose">
+              <select class="form-input" id="f-purchase_purpose" onchange="onPurchasePurposeChange(this)">
                 <option value="">— выберите —</option>
                 <option value="Для себя">Для себя</option>
                 <option value="Такси">Такси</option>
                 <option value="Для бизнеса">Для бизнеса</option>
-                <option value="Другое">Другое</option>
+                <option value="__custom">Написать вручную</option>
               </select>
+              <input class="form-input" id="f-purchase_purpose_custom" placeholder="Укажите цель покупки" style="display:none;margin-top:6px">
             </div>
             <div class="form-group">
               <label class="form-label">Марка <span class="required">*</span></label>
@@ -995,6 +999,10 @@
         <div class="print-header-qr" id="printQr"></div>
       </div>
       <div id="printFullBody" style="display:none"></div>
+      <div class="print-footer">
+        <span>Fintech Drive — Андеррайтинг</span>
+        <span id="printFooterDate"></span>
+      </div>
 
       <div class="duplicate-banner" id="duplicateBanner" style="display:none">
         <div class="duplicate-banner-icon">!</div>
@@ -1324,6 +1332,7 @@
     </div>
     <div class="content">
       <div class="card">
+        <div class="table-scroll">
         <table>
           <thead>
             <tr>
@@ -1344,6 +1353,7 @@
             <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>
@@ -1368,6 +1378,7 @@
     </div>
     <div class="content">
       <div class="card">
+        <div class="table-scroll">
         <table>
           <thead>
             <tr>
@@ -1385,6 +1396,7 @@
             <tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>
@@ -1407,6 +1419,7 @@
     </div>
     <div class="content">
       <div class="card">
+        <div class="table-scroll">
         <table>
           <thead>
             <tr>
@@ -1422,6 +1435,7 @@
             <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   </div>
@@ -1720,6 +1734,10 @@
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="/static/js/app.js?v=4"></script>
+<button class="mobile-menu-btn" onclick="openMobileSidebar()" aria-label="Меню">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+</button>
+
+<script src="/static/js/app.js?v=7"></script>
 </body>
 </html>
