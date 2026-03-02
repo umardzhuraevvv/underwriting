@@ -384,6 +384,18 @@ def init_db():
             except Exception:
                 conn.rollback()
 
+    # Migration: clear PINFL and passport data (security — fields removed from UI)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text(
+                "UPDATE anketas SET pinfl = NULL, pinfl_hash = NULL, "
+                "passport_series = NULL, passport_issue_date = NULL, passport_issued_by = NULL "
+                "WHERE pinfl IS NOT NULL OR passport_series IS NOT NULL"
+            ))
+            conn.commit()
+        except Exception:
+            conn.rollback()
+
     # Migration: users table new columns
     user_new_columns = [
         ("role_id", "INTEGER REFERENCES roles(id)"),

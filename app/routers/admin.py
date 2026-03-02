@@ -623,7 +623,7 @@ def _fill_individual_sheet(ws, anketas, users_map):
     """Fill sheet with individual anketa data."""
     headers = [
         "ID", "Дата создания", "Статус", "ФИО клиента", "Дата рождения",
-        "ПИНФЛ", "Паспорт", "Телефон", "Адрес фактический",
+        "Телефон", "Адрес фактический",
         "Партнёр", "Марка", "Модель", "Год авто", "Пробег (км)",
         "Стоимость (сум)", "ПВ %", "ПВ сумма", "Остаток",
         "Срок (мес)", "Ставка %", "Ежемесячный платёж",
@@ -640,31 +640,29 @@ def _fill_individual_sheet(ws, anketas, users_map):
         ws.cell(row=row, column=3, value=_status_label(a.status))
         ws.cell(row=row, column=4, value=_fmt(a.full_name))
         ws.cell(row=row, column=5, value=_fmt_date(a.birth_date) if a.birth_date else "")
-        ws.cell(row=row, column=6, value=_fmt(a.pinfl))
-        ws.cell(row=row, column=7, value=_fmt(a.passport_series))
-        ws.cell(row=row, column=8, value=_fmt(a.phone_numbers))
-        ws.cell(row=row, column=9, value=_fmt(a.actual_address))
-        ws.cell(row=row, column=10, value=_fmt(a.partner))
-        ws.cell(row=row, column=11, value=_fmt(a.car_brand))
-        ws.cell(row=row, column=12, value=_fmt(a.car_model))
-        ws.cell(row=row, column=13, value=_fmt_num(a.car_year))
-        ws.cell(row=row, column=14, value=_fmt_num(a.mileage))
-        ws.cell(row=row, column=15, value=_fmt_num(a.purchase_price))
-        ws.cell(row=row, column=16, value=_fmt_num(a.down_payment_percent))
-        ws.cell(row=row, column=17, value=_fmt_num(a.down_payment_amount))
-        ws.cell(row=row, column=18, value=_fmt_num(a.remaining_amount))
-        ws.cell(row=row, column=19, value=_fmt_num(a.lease_term_months))
-        ws.cell(row=row, column=20, value=_fmt_num(a.interest_rate))
-        ws.cell(row=row, column=21, value=_fmt_num(a.monthly_payment))
-        ws.cell(row=row, column=22, value=_fmt_num(a.total_monthly_income))
-        ws.cell(row=row, column=23, value=_fmt_num(a.dti))
-        ws.cell(row=row, column=24, value=_fmt(a.overdue_category))
-        ws.cell(row=row, column=25, value=_decision_label(a.decision))
-        ws.cell(row=row, column=26, value=_fmt(a.auto_decision))
-        ws.cell(row=row, column=27, value=_fmt_num(a.recommended_pv))
-        ws.cell(row=row, column=28, value=_fmt(a.conclusion_comment))
-        ws.cell(row=row, column=29, value=concluder)
-        ws.cell(row=row, column=30, value=_fmt_date(a.concluded_at))
+        ws.cell(row=row, column=6, value=_fmt(a.phone_numbers))
+        ws.cell(row=row, column=7, value=_fmt(a.actual_address))
+        ws.cell(row=row, column=8, value=_fmt(a.partner))
+        ws.cell(row=row, column=9, value=_fmt(a.car_brand))
+        ws.cell(row=row, column=10, value=_fmt(a.car_model))
+        ws.cell(row=row, column=11, value=_fmt_num(a.car_year))
+        ws.cell(row=row, column=12, value=_fmt_num(a.mileage))
+        ws.cell(row=row, column=13, value=_fmt_num(a.purchase_price))
+        ws.cell(row=row, column=14, value=_fmt_num(a.down_payment_percent))
+        ws.cell(row=row, column=15, value=_fmt_num(a.down_payment_amount))
+        ws.cell(row=row, column=16, value=_fmt_num(a.remaining_amount))
+        ws.cell(row=row, column=17, value=_fmt_num(a.lease_term_months))
+        ws.cell(row=row, column=18, value=_fmt_num(a.interest_rate))
+        ws.cell(row=row, column=19, value=_fmt_num(a.monthly_payment))
+        ws.cell(row=row, column=20, value=_fmt_num(a.total_monthly_income))
+        ws.cell(row=row, column=21, value=_fmt_num(a.dti))
+        ws.cell(row=row, column=22, value=_fmt(a.overdue_category))
+        ws.cell(row=row, column=23, value=_decision_label(a.decision))
+        ws.cell(row=row, column=24, value=_fmt(a.auto_decision))
+        ws.cell(row=row, column=25, value=_fmt_num(a.recommended_pv))
+        ws.cell(row=row, column=26, value=_fmt(a.conclusion_comment))
+        ws.cell(row=row, column=27, value=concluder)
+        ws.cell(row=row, column=28, value=_fmt_date(a.concluded_at))
 
     # Auto-width columns
     for col in range(1, len(headers) + 1):

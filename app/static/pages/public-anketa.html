@@ -266,10 +266,6 @@
         html += section('Клиент');
         html += row('ФИО', pv(data.full_name));
         html += row('Дата рождения', pd(data.birth_date));
-        html += row('ПИНФЛ', pv(data.pinfl));
-        html += row('Серия/номер паспорта', pv(data.passport_series));
-        html += row('Дата выдачи', pd(data.passport_issue_date));
-        html += row('Кем выдан', pv(data.passport_issued_by));
         html += row('Адрес регистрации', pv(data.registration_address));
         html += row('Ориентир (рег.)', pv(data.registration_landmark));
         html += row('Фактический адрес', pv(data.actual_address));

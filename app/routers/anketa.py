@@ -805,16 +805,6 @@ def find_duplicates(db: Session, anketa: Anketa) -> list[dict]:
         else:
             matches[m.id] = {"obj": m, "fields": [match_field]}
 
-    # По ПИНФЛ
-    if anketa.pinfl and len(anketa.pinfl) == 14:
-        for m in db.query(Anketa).filter(Anketa.pinfl == anketa.pinfl, Anketa.id != anketa.id, Anketa.status != "deleted").all():
-            _add(m, "ПИНФЛ")
-
-    # По паспорту
-    if anketa.passport_series and anketa.passport_series.strip():
-        for m in db.query(Anketa).filter(Anketa.passport_series == anketa.passport_series.strip(), Anketa.id != anketa.id, Anketa.status != "deleted").all():
-            _add(m, "Паспорт")
-
     # По номеру телефона
     if anketa.phone_numbers and anketa.phone_numbers.strip():
         phone_norm = _normalize_phone(anketa.phone_numbers)
@@ -885,7 +875,7 @@ def check_duplicate(
     db: Session = Depends(get_db),
 ):
     """Real-time duplicate check for a single field."""
-    allowed = {"pinfl", "passport_series", "phone_numbers", "company_inn"}
+    allowed = {"phone_numbers", "company_inn"}
     if field not in allowed:
         raise HTTPException(status_code=400, detail=f"Invalid field: {field}")
 
@@ -1330,7 +1320,7 @@ def update_anketa(
                 update_data[field] = None
 
     # Normalize passport fields (strip spaces from formatted input like "AC 1234567")
-    for pf in ("passport_series", "guarantor_passport"):
+    for pf in ("guarantor_passport",):
         if pf in update_data and update_data[pf]:
             update_data[pf] = update_data[pf].replace(" ", "")
 
@@ -1396,8 +1386,6 @@ def save_anketa(
             errors.append("ФИО обязательно")
         if not anketa.birth_date:
             errors.append("Дата рождения обязательна")
-        if not anketa.passport_series:
-            errors.append("Серия паспорта обязательна")
         if not anketa.purchase_price:
             errors.append("Стоимость обязательна")
         if not anketa.down_payment_percent:
@@ -1410,25 +1398,6 @@ def save_anketa(
             errors.append("Укажите наличие обязательств (Кредитная история)")
         if not anketa.overdue_category:
             errors.append("Укажите категорию просрочки (Кредитная история)")
-
-        # Validate relative phones (min 2 contacts)
-        if anketa.relative_phones:
-            try:
-                rp = json.loads(anketa.relative_phones)
-                filled = [p for p in rp if isinstance(p, dict) and p.get("phone", "").strip()]
-                if len(filled) < 2:
-                    errors.append("Укажите минимум 2 дополнительных контакта")
-            except (json.JSONDecodeError, TypeError):
-                # Legacy plain text — count comma-separated
-                parts = [p.strip() for p in anketa.relative_phones.split(",") if p.strip()]
-                if len(parts) < 2:
-                    errors.append("Укажите минимум 2 дополнительных контакта")
-        else:
-            errors.append("Укажите минимум 2 дополнительных контакта")
-
-        # Validate PINFL (14 digits)
-        if anketa.pinfl and (len(anketa.pinfl) != 14 or not anketa.pinfl.isdigit()):
-            errors.append("ПИНФЛ должен содержать ровно 14 цифр")
 
     # Validate PV against risk grade
     if anketa.risk_grade and not anketa.no_scoring_response:

@@ -133,7 +133,7 @@ function formatPassport(input) {
 }
 
 function initPassportFields() {
-  ['f-passport_series', 'f-guarantor_passport'].forEach(id => {
+  ['f-guarantor_passport'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', () => formatPassport(el));
   });
@@ -194,16 +194,7 @@ function validatePinfl(pinflId, birthDateId, errorId) {
 }
 
 function initPinflValidation() {
-  const pinfl = document.getElementById('f-pinfl');
-  const birthDate = document.getElementById('f-birth_date');
-  const validate = () => validatePinfl('f-pinfl', 'f-birth_date', 'pinfl-error');
-  if (pinfl) {
-    pinfl.addEventListener('blur', validate);
-    pinfl.addEventListener('input', () => {
-      if (pinfl.value.trim().length === 14) validate();
-    });
-  }
-  // birthDate listeners set via inline onchange/oninput in HTML
+  // Only guarantor pinfl validation remains
   const gPinfl = document.getElementById('f-guarantor_pinfl');
   if (gPinfl) {
     gPinfl.addEventListener('blur', () => validatePinfl('f-guarantor_pinfl', 'f-birth_date', 'guarantor-pinfl-error'));
@@ -212,7 +203,7 @@ function initPinflValidation() {
 
 // ---------- DUPLICATE CHECK ----------
 
-const DUP_MIN_LEN = { pinfl: 14, passport_series: 4, phone_numbers: 9, company_inn: 9 };
+const DUP_MIN_LEN = { phone_numbers: 9, company_inn: 9 };
 const _dupControllers = {};
 
 async function checkDuplicate(field, inputId, containerId) {
@@ -265,8 +256,6 @@ async function checkDuplicate(field, inputId, containerId) {
 
 function initDuplicateChecks() {
   const fields = [
-    { field: 'pinfl', inputId: 'f-pinfl', containerId: 'dup-pinfl' },
-    { field: 'passport_series', inputId: 'f-passport_series', containerId: 'dup-passport_series' },
     { field: 'phone_numbers', inputId: 'f-phone_numbers', containerId: 'dup-phone_numbers' },
     { field: 'company_inn', inputId: 'f-company_inn', containerId: 'dup-company_inn' },
   ];
@@ -932,8 +921,7 @@ let anketasData = [];
 
 // All form field IDs (without f- prefix)
 const anketaFields = [
-  'consent_personal_data', 'full_name', 'birth_date', 'passport_series',
-  'passport_issue_date', 'passport_issued_by', 'pinfl', 'registration_address',
+  'consent_personal_data', 'full_name', 'birth_date', 'registration_address',
   'registration_landmark', 'actual_address', 'actual_landmark', 'phone_numbers',
   'partner', 'car_brand', 'car_model', 'car_specs', 'car_year',
   'mileage', 'purchase_price', 'down_payment_percent',
@@ -1170,7 +1158,7 @@ function fillAnketaForm(data) {
       el.checked = !!data[field];
     } else if (MONEY_FIELDS.includes(field) && data[field] != null && typeof data[field] === 'number') {
       el.value = formatNumber(data[field]);
-    } else if ((field === 'passport_series' || field === 'guarantor_passport') && data[field]) {
+    } else if (field === 'guarantor_passport' && data[field]) {
       // Format stored passport "AC1234567" → "AC 1234567"
       const v = String(data[field]).replace(/\s/g, '');
       el.value = v.length >= 2 ? v.substring(0, 2) + ' ' + v.substring(2) : v;
@@ -1374,7 +1362,6 @@ function collectAnketaData() {
   }
 
   // Normalize passport fields — strip spaces
-  if (data.passport_series) data.passport_series = data.passport_series.replace(/\s/g, '');
   if (data.guarantor_passport) data.guarantor_passport = data.guarantor_passport.replace(/\s/g, '');
 
   return data;
@@ -1527,9 +1514,6 @@ async function saveAnketaFinal() {
     return;
   }
 
-  // PINFL birth date warning (non-blocking)
-  validatePinfl('f-pinfl', 'f-birth_date', 'pinfl-error');
-
   // Auto-create anketa if needed
   if (!(await ensureAnketaCreated())) return;
 
@@ -1591,14 +1575,9 @@ const TAB_REQUIRED = {
   personal: [
     { id: 'f-full_name', label: 'ФИО' },
     { id: 'f-birth_date', label: 'Дата рождения' },
-    { id: 'f-pinfl', label: 'ПИНФЛ' },
-    { id: 'f-passport_series', label: 'Паспорт' },
-    { id: 'f-passport_issue_date', label: 'Дата выдачи' },
-    { id: 'f-passport_issued_by', label: 'Кем выдан' },
     { id: 'f-registration_address', label: 'Адрес прописки' },
     { id: 'f-phone_numbers', label: 'Телефон клиента' },
     { id: 'f-consent_personal_data', label: 'Согласие на ПД', type: 'checkbox' },
-    { id: '_relative_phones', label: 'Мин. 2 доп. контакта', type: 'custom', validate: validateRelativePhones },
   ],
   deal: [
     { id: 'f-car_brand', label: 'Марка' },
@@ -1841,10 +1820,6 @@ function renderAnketaView(data) {
     document.getElementById('view-personal').innerHTML = viewFieldsHtml([
       ['ФИО', data.full_name],
       ['Дата рождения', data.birth_date],
-      ['ПИНФЛ', data.pinfl],
-      ['Паспорт', data.passport_series],
-      ['Дата выдачи', data.passport_issue_date],
-      ['Кем выдан', data.passport_issued_by],
       ['Адрес прописки', data.registration_address, true],
       ['Ориентир (прописка)', data.registration_landmark, true],
       ['Адрес фактический', data.actual_address, true],
@@ -2852,11 +2827,11 @@ function renderFormSidebar() {
   if (!panel) return;
 
   // Read current form values
-  const price = parseFloat(document.getElementById('f-purchase_price')?.value) || 0;
+  const price = parseFloat((document.getElementById('f-purchase_price')?.value || '').replace(/\s/g, '').replace(/,/g, '')) || 0;
   const dpPercent = parseFloat(document.getElementById('f-down_payment_percent')?.value) || 0;
   const payment = parseFloat((document.getElementById('f-monthly_payment')?.value || '').replace(/\s/g, '').replace(/,/g, '')) || 0;
   const income = parseFloat((document.getElementById('f-total_monthly_income')?.value || '').replace(/\s/g, '').replace(/,/g, '')) || 0;
-  const obligations = parseFloat(document.getElementById('f-monthly_obligations_payment')?.value) || 0;
+  const obligations = parseFloat((document.getElementById('f-monthly_obligations_payment')?.value || '').replace(/\s/g, '').replace(/,/g, '')) || 0;
   const overdueCat = document.getElementById('f-overdue_category')?.value || '';
   const lastOverdueDate = document.getElementById('f-last_overdue_date')?.value || '';
 
@@ -3509,9 +3484,8 @@ async function loadPendingRequestsCount() {
 // ---------- ANKETA HISTORY ----------
 
 const fieldLabels = {
-  full_name: 'ФИО', birth_date: 'Дата рождения', passport_series: 'Серия паспорта',
-  passport_issue_date: 'Дата выдачи', passport_issued_by: 'Кем выдан',
-  pinfl: 'ПИНФЛ', registration_address: 'Адрес прописки',
+  full_name: 'ФИО', birth_date: 'Дата рождения',
+  registration_address: 'Адрес прописки',
   registration_landmark: 'Ориентир (прописка)', actual_address: 'Фактический адрес',
   actual_landmark: 'Ориентир (факт.)', phone_numbers: 'Телефон',
   relative_phones: 'Доп. контакты', partner: 'Партнёр',
@@ -4309,10 +4283,6 @@ function buildPrintContent(data) {
     rows += _printSection('Клиент');
     rows += _printRow('ФИО', _pv(data.full_name));
     rows += _printRow('Дата рождения', _pd(data.birth_date));
-    rows += _printRow('ПИНФЛ', _pv(data.pinfl));
-    rows += _printRow('Серия/номер паспорта', _pv(data.passport_series));
-    rows += _printRow('Дата выдачи', _pd(data.passport_issue_date));
-    rows += _printRow('Кем выдан', _pv(data.passport_issued_by));
     rows += _printRow('Адрес регистрации', _pv(data.registration_address));
     rows += _printRow('Ориентир (рег.)', _pv(data.registration_landmark));
     rows += _printRow('Фактический адрес', _pv(data.actual_address));
@@ -4490,7 +4460,7 @@ function printAnketa() {
 
   // Set document title for PDF filename: "ФИО_ПИНФЛ" or "Компания_ИНН"
   const origTitle = document.title;
-  const pdfId = isLegal ? (data.company_inn || '') : (data.pinfl || '');
+  const pdfId = isLegal ? (data.company_inn || '') : (data.id || '');
   document.title = clientName + (pdfId ? '_' + pdfId : '');
 
   // Build full print content and inject
