@@ -8,7 +8,7 @@
   <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon_32.png">
   <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon_64.png">
   <link rel="apple-touch-icon" href="/static/favicon_64.png">
-  <link rel="stylesheet" href="/static/css/style.css?v=5">
+  <link rel="stylesheet" href="/static/css/style.css?v=6">
   <script src="/static/js/qrcode.min.js"></script>
   <script>if(localStorage.getItem('sidebarCollapsed')==='1')document.documentElement.classList.add('sidebar-pre-collapsed');</script>
   <script>if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
@@ -242,8 +242,8 @@
               <th>Клиент</th>
               <th>Статус</th>
               <th>Автомобиль</th>
-              <th>Создатель</th>
-              <th>Дата</th>
+              <th class="col-hide-mobile">Создатель</th>
+              <th class="col-hide-mobile">Дата</th>
               <th>Действия</th>
             </tr>
           </thead>
@@ -1427,7 +1427,7 @@
               <th>Email</th>
               <th>Роль</th>
               <th>Статус</th>
-              <th>Создан</th>
+              <th class="col-hide-mobile">Создан</th>
               <th>Действия</th>
             </tr>
           </thead>
@@ -1734,10 +1734,29 @@
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toastContainer"></div>
 
+<nav class="mobile-bottom-nav" id="mobileBottomNav">
+  <button class="mobile-bottom-nav-item active" onclick="navigate('dashboard')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+    <span>Главная</span>
+  </button>
+  <button class="mobile-bottom-nav-item" onclick="navigate('ankety')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <span>Заявки</span>
+  </button>
+  <button class="mobile-bottom-nav-item" onclick="navigate('calculator')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <span>Калькулятор</span>
+  </button>
+  <button class="mobile-bottom-nav-item" onclick="openMobileSidebar()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    <span>Ещё</span>
+  </button>
+</nav>
+
 <button class="mobile-menu-btn" onclick="openMobileSidebar()" aria-label="Меню">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
 </button>
 
-<script src="/static/js/app.js?v=7"></script>
+<script src="/static/js/app.js?v=8"></script>
 </body>
 </html>

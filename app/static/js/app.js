@@ -381,6 +381,15 @@ function navigate(page, data) {
     item.classList.toggle('active', match);
   });
 
+  // Update mobile bottom nav active state
+  document.querySelectorAll('.mobile-bottom-nav-item').forEach(btn => {
+    const handler = btn.getAttribute('onclick') || '';
+    const isAnkety = handler.includes("'ankety'") && (page === 'ankety' || page === 'view-anketa' || page === 'new-anketa');
+    const isDash = handler.includes("'dashboard'") && page === 'dashboard';
+    const isCalc = handler.includes("'calculator'") && page === 'calculator';
+    btn.classList.toggle('active', isDash || isAnkety || isCalc);
+  });
+
   // Load page data
   if (page === 'dashboard') loadDashboardStats();
   if (page === 'users') loadUsers();
@@ -674,7 +683,7 @@ function renderUsersTable() {
         <td><code style="font-family:'JetBrains Mono',monospace;font-size:12.5px;background:var(--bg);padding:2px 8px;border-radius:4px">${escapeHtml(u.email)}</code></td>
         <td>${roleBadge}</td>
         <td>${statusBadge}</td>
-        <td>${created}</td>
+        <td class="col-hide-mobile">${created}</td>
         <td>
           <div style="display:flex;gap:6px">
             <button class="btn btn-outline btn-sm" onclick="openEditUserModal(${u.id})">Изменить</button>
@@ -1062,8 +1071,8 @@ function renderAnketasTable(data) {
         <td><div class="td-main">${typeBadge} ${escapeHtml(name)}</div></td>
         <td><span class="status-badge ${st.cls}"><span class="status-dot"></span>${st.label}</span></td>
         <td>${car}</td>
-        <td>${creator}</td>
-        <td>${created}</td>
+        <td class="col-hide-mobile">${creator}</td>
+        <td class="col-hide-mobile">${created}</td>
         <td>
           <div style="display:flex;gap:6px">
             <button class="btn btn-outline btn-sm" onclick="event.stopPropagation(); openAnketa(${a.id}, '${a.status}')">Открыть</button>
