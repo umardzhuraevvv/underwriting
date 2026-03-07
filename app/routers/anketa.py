@@ -23,6 +23,8 @@ from app.services.anketa_service import (
 )
 from app.services.analytics_service import (
     get_stats_data, get_analytics_data, get_employee_stats_data,
+    get_monthly_trend, get_dti_distribution,
+    get_inspector_stats, get_avg_amount_trend,
 )
 from app.schemas import (
     ConclusionRequest, DeleteAnketaRequest,
@@ -223,6 +225,54 @@ def get_analytics(
         except ValueError:
             raise HTTPException(status_code=400, detail="Неверный формат даты")
     return get_analytics_data(db, user, period, date_from, date_to, client_type)
+
+
+@router.get("/analytics/monthly-trend")
+def analytics_monthly_trend(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Тренд анкет по месяцам (последние 12 месяцев)."""
+    perms = get_user_permissions(user, db)
+    if not perms.get("analytics_view"):
+        raise HTTPException(status_code=403, detail="Нет права: analytics_view")
+    return get_monthly_trend(db)
+
+
+@router.get("/analytics/dti-distribution")
+def analytics_dti_distribution(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Распределение анкет по DTI."""
+    perms = get_user_permissions(user, db)
+    if not perms.get("analytics_view"):
+        raise HTTPException(status_code=403, detail="Нет права: analytics_view")
+    return get_dti_distribution(db)
+
+
+@router.get("/analytics/inspector-stats")
+def analytics_inspector_stats(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Топ инспекторов по количеству анкет."""
+    perms = get_user_permissions(user, db)
+    if not perms.get("analytics_view"):
+        raise HTTPException(status_code=403, detail="Нет права: analytics_view")
+    return get_inspector_stats(db)
+
+
+@router.get("/analytics/amount-trend")
+def analytics_amount_trend(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Средняя сумма лизинга по месяцам."""
+    perms = get_user_permissions(user, db)
+    if not perms.get("analytics_view"):
+        raise HTTPException(status_code=403, detail="Нет права: analytics_view")
+    return get_avg_amount_trend(db)
 
 
 @router.get("/edit-requests", response_model=list[EditRequestOut])

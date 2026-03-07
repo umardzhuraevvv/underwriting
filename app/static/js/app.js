@@ -2546,6 +2546,7 @@ async function loadDashboardStats() {
     const stats = await res.json();
     renderDashboard(stats);
     loadAnalytics();
+    loadAnalyticsCharts();
   } catch (err) {
     console.error('Dashboard error:', err);
     showErrorState('dashboardStats', 'Ошибка загрузки статистики', 'loadDashboardStats()');
@@ -4224,6 +4225,170 @@ function renderAnalytics(data) {
       </div>`;
     }).join('');
   }
+}
+
+
+// ---------- ANALYTICS CHARTS (Chart.js) ----------
+
+let _chartMonthlyTrend = null;
+let _chartDti = null;
+let _chartInspectors = null;
+let _chartAmount = null;
+
+function _chartColors() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  return {
+    green: '#22C55E',
+    red: '#EF4444',
+    yellow: '#F59E0B',
+    blue: '#6366F1',
+    grid: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
+    text: isDark ? '#CBD5E1' : '#64748B',
+  };
+}
+
+async function loadAnalyticsCharts() {
+  if (typeof Chart === 'undefined') return;
+  const user = getUser();
+  if (!user || !user.permissions || !user.permissions.analytics_view) {
+    const section = document.getElementById('analyticsChartsSection');
+    if (section) section.style.display = 'none';
+    return;
+  }
+
+  const section = document.getElementById('analyticsChartsSection');
+  if (section) section.style.display = '';
+
+  const hdrs = authHeaders();
+  try {
+    const [trendRes, dtiRes, inspRes, amtRes] = await Promise.all([
+      fetch('/api/anketas/analytics/monthly-trend', { headers: hdrs }),
+      fetch('/api/anketas/analytics/dti-distribution', { headers: hdrs }),
+      fetch('/api/anketas/analytics/inspector-stats', { headers: hdrs }),
+      fetch('/api/anketas/analytics/amount-trend', { headers: hdrs }),
+    ]);
+
+    if (trendRes.ok) renderChartMonthlyTrend(await trendRes.json());
+    if (dtiRes.ok) renderChartDti(await dtiRes.json());
+    if (inspRes.ok) renderChartInspectors(await inspRes.json());
+    if (amtRes.ok) renderChartAmountTrend(await amtRes.json());
+  } catch (e) {
+    console.error('Analytics charts error:', e);
+  }
+}
+
+function _destroyChart(chart) {
+  if (chart) chart.destroy();
+  return null;
+}
+
+function renderChartMonthlyTrend(data) {
+  _chartMonthlyTrend = _destroyChart(_chartMonthlyTrend);
+  const c = _chartColors();
+  const ctx = document.getElementById('chartMonthlyTrend');
+  if (!ctx || !data.length) return;
+  _chartMonthlyTrend = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.month),
+      datasets: [
+        { label: 'Одобрено', data: data.map(d => d.approved), borderColor: c.green, backgroundColor: c.green + '20', tension: 0.3, fill: true },
+        { label: 'Отказано', data: data.map(d => d.rejected), borderColor: c.red, backgroundColor: c.red + '20', tension: 0.3, fill: true },
+        { label: 'На рассмотр.', data: data.map(d => d.review), borderColor: c.yellow, backgroundColor: c.yellow + '20', tension: 0.3, fill: true },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: c.text, font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: c.text, font: { size: 10 } }, grid: { color: c.grid } },
+        y: { beginAtZero: true, ticks: { color: c.text, font: { size: 10 } }, grid: { color: c.grid } },
+      },
+    },
+  });
+}
+
+function renderChartDti(data) {
+  _chartDti = _destroyChart(_chartDti);
+  const c = _chartColors();
+  const ctx = document.getElementById('chartDtiDistribution');
+  if (!ctx || !data.length) return;
+  const colors = [c.green, c.yellow, '#F97316', c.red];
+  _chartDti = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.range),
+      datasets: [{
+        label: 'Кол-во анкет',
+        data: data.map(d => d.count),
+        backgroundColor: colors,
+        borderRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: c.text, font: { size: 11 } }, grid: { display: false } },
+        y: { beginAtZero: true, ticks: { color: c.text, font: { size: 10 } }, grid: { color: c.grid } },
+      },
+    },
+  });
+}
+
+function renderChartInspectors(data) {
+  _chartInspectors = _destroyChart(_chartInspectors);
+  const c = _chartColors();
+  const ctx = document.getElementById('chartInspectors');
+  if (!ctx || !data.length) return;
+  _chartInspectors = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: data.map(d => d.name),
+      datasets: [
+        { label: 'Одобрено', data: data.map(d => d.approved), backgroundColor: c.green, borderRadius: 4 },
+        { label: 'Отказано', data: data.map(d => d.rejected), backgroundColor: c.red, borderRadius: 4 },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      plugins: { legend: { labels: { color: c.text, font: { size: 11 } } } },
+      scales: {
+        x: { beginAtZero: true, stacked: true, ticks: { color: c.text, font: { size: 10 } }, grid: { color: c.grid } },
+        y: { stacked: true, ticks: { color: c.text, font: { size: 11 } }, grid: { display: false } },
+      },
+    },
+  });
+}
+
+function renderChartAmountTrend(data) {
+  _chartAmount = _destroyChart(_chartAmount);
+  const c = _chartColors();
+  const ctx = document.getElementById('chartAmountTrend');
+  if (!ctx || !data.length) return;
+  _chartAmount = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.map(d => d.month),
+      datasets: [{
+        label: 'Средняя сумма',
+        data: data.map(d => d.avg_amount),
+        borderColor: c.blue,
+        backgroundColor: c.blue + '20',
+        tension: 0.3,
+        fill: true,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: c.text, font: { size: 11 } } } },
+      scales: {
+        x: { ticks: { color: c.text, font: { size: 10 } }, grid: { color: c.grid } },
+        y: { beginAtZero: true, ticks: { color: c.text, font: { size: 10 }, callback: v => v >= 1000000 ? (v/1000000).toFixed(1) + 'M' : v >= 1000 ? (v/1000).toFixed(0) + 'K' : v }, grid: { color: c.grid } },
+      },
+    },
+  });
 }
 
 

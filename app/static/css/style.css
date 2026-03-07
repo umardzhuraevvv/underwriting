@@ -1981,8 +1981,37 @@ select.form-input {
   grid-template-columns: 380px 1fr;
   gap: 20px;
 }
+/* ---------- Analytics Charts ---------- */
+.analytics-charts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.chart-card {
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.chart-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+[data-theme="dark"] .chart-card {
+  background: var(--white);
+  border-color: var(--border);
+}
+
 @media(max-width:900px) {
   .calc-layout { grid-template-columns: 1fr; }
+  .analytics-charts { grid-template-columns: 1fr; }
 }
 
 .calc-results-col {

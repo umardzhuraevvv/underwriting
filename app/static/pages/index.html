@@ -10,6 +10,7 @@
   <link rel="apple-touch-icon" href="/static/favicon_64.png">
   <link rel="stylesheet" href="/static/css/style.css?v=6">
   <script src="/static/js/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script>if(localStorage.getItem('sidebarCollapsed')==='1')document.documentElement.classList.add('sidebar-pre-collapsed');</script>
   <script>if(localStorage.getItem('theme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
 </head>
@@ -184,6 +185,24 @@
         <div class="funnel-card">
           <div class="funnel-title">Распределение по риск-грейдам</div>
           <div id="riskDistribution"></div>
+        </div>
+      </div>
+      <div class="analytics-charts" id="analyticsChartsSection" style="display:none">
+        <div class="chart-card">
+          <div class="chart-card-title">Тренд анкет по месяцам</div>
+          <canvas id="chartMonthlyTrend"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Распределение DTI</div>
+          <canvas id="chartDtiDistribution"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Топ инспекторов</div>
+          <canvas id="chartInspectors"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Средняя сумма лизинга</div>
+          <canvas id="chartAmountTrend"></canvas>
         </div>
       </div>
     </div>

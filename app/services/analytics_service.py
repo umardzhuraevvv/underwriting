@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func as sa_func
+from sqlalchemy import func as sa_func, extract, case
 
 from app.database import Anketa, User
 from app.auth import get_user_permissions
@@ -231,3 +231,122 @@ def get_employee_stats_data(db: Session, user: User, period: str,
     # Sort by total desc
     result.sort(key=lambda x: x["total"], reverse=True)
     return result
+
+
+def get_monthly_trend(db: Session) -> list[dict]:
+    """Тренд анкет по месяцам (последние 12 месяцев)."""
+    now = datetime.utcnow()
+    start = datetime(now.year, now.month, 1) - timedelta(days=365)
+
+    rows = (
+        db.query(
+            extract("year", Anketa.created_at).label("y"),
+            extract("month", Anketa.created_at).label("m"),
+            sa_func.count().label("total"),
+            sa_func.sum(case((Anketa.status == "approved", 1), else_=0)).label("approved"),
+            sa_func.sum(case((Anketa.status.in_(["rejected_underwriter", "rejected_client"]), 1), else_=0)).label("rejected"),
+            sa_func.sum(case((Anketa.status == "review", 1), else_=0)).label("review"),
+        )
+        .filter(Anketa.created_at >= start, Anketa.deleted_at.is_(None))
+        .group_by("y", "m")
+        .order_by("y", "m")
+        .all()
+    )
+
+    return [
+        {
+            "month": f"{int(r.y)}-{int(r.m):02d}",
+            "total": int(r.total),
+            "approved": int(r.approved),
+            "rejected": int(r.rejected),
+            "review": int(r.review),
+        }
+        for r in rows
+    ]
+
+
+def get_dti_distribution(db: Session) -> list[dict]:
+    """Распределение анкет по диапазонам DTI."""
+    base = db.query(Anketa).filter(
+        Anketa.dti.isnot(None),
+        Anketa.status != "draft",
+        Anketa.deleted_at.is_(None),
+    )
+
+    ranges = [
+        ("0-30%", 0, 30),
+        ("30-50%", 30, 50),
+        ("50-60%", 50, 60),
+        ("60%+", 60, None),
+    ]
+
+    result = []
+    for label, lo, hi in ranges:
+        q = base.filter(Anketa.dti >= lo)
+        if hi is not None:
+            q = q.filter(Anketa.dti < hi)
+        result.append({"range": label, "count": q.count()})
+
+    return result
+
+
+def get_inspector_stats(db: Session) -> list[dict]:
+    """Топ инспекторов по количеству анкет."""
+    rows = (
+        db.query(
+            Anketa.created_by,
+            User.full_name,
+            sa_func.count().label("total"),
+            sa_func.sum(case((Anketa.status == "approved", 1), else_=0)).label("approved"),
+            sa_func.sum(case((Anketa.status.in_(["rejected_underwriter", "rejected_client"]), 1), else_=0)).label("rejected"),
+            sa_func.avg(case((Anketa.dti.isnot(None), Anketa.dti))).label("avg_dti"),
+        )
+        .join(User, User.id == Anketa.created_by)
+        .filter(Anketa.deleted_at.is_(None))
+        .group_by(Anketa.created_by, User.full_name)
+        .order_by(sa_func.count().desc())
+        .limit(10)
+        .all()
+    )
+
+    return [
+        {
+            "name": r.full_name or f"User #{r.created_by}",
+            "total": int(r.total),
+            "approved": int(r.approved),
+            "rejected": int(r.rejected),
+            "avg_dti": round(float(r.avg_dti), 1) if r.avg_dti else 0,
+        }
+        for r in rows
+    ]
+
+
+def get_avg_amount_trend(db: Session) -> list[dict]:
+    """Средняя сумма лизинга по месяцам (последние 12 месяцев)."""
+    now = datetime.utcnow()
+    start = datetime(now.year, now.month, 1) - timedelta(days=365)
+
+    rows = (
+        db.query(
+            extract("year", Anketa.created_at).label("y"),
+            extract("month", Anketa.created_at).label("m"),
+            sa_func.avg(Anketa.purchase_price).label("avg_amount"),
+        )
+        .filter(
+            Anketa.created_at >= start,
+            Anketa.purchase_price.isnot(None),
+            Anketa.purchase_price > 0,
+            Anketa.deleted_at.is_(None),
+        )
+        .group_by("y", "m")
+        .order_by("y", "m")
+        .all()
+    )
+
+    return [
+        {
+            "month": f"{int(r.y)}-{int(r.m):02d}",
+            "avg_amount": round(float(r.avg_amount), 0) if r.avg_amount else 0,
+        }
+        for r in rows
+    ]
