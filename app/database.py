@@ -284,6 +284,21 @@ class RiskRule(Base):
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class WebhookConfig(Base):
+    __tablename__ = "webhook_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    url = Column(String(500), nullable=False)
+    secret = Column(String(200))
+    events = Column(String(500), default="all")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, server_default=func.now())
+    created_by = Column(Integer, ForeignKey("users.id"))
+
+    creator = relationship("User", foreign_keys=[created_by])
+
+
 class UnderwritingRule(Base):
     __tablename__ = "underwriting_rules"
     id = Column(Integer, primary_key=True, index=True)

@@ -66,6 +66,16 @@ class TestLogin:
         resp = client.post("/api/auth/login", json={"email": "inspector@test.com", "password": "Inspector123!"})
         assert resp.status_code == 403, f"Деактивированный юзер → 403, получили {resp.status_code}"
 
+    def test_rate_limit_login(self, client, seeded_db):
+        """6-й запрос на логин должен вернуть 429."""
+        payload = {"email": "admin@test.com", "password": "WrongPass!"}
+        for i in range(5):
+            resp = client.post("/api/auth/login", json=payload)
+            assert resp.status_code == 401, f"Запрос {i+1}: ожидали 401, получили {resp.status_code}"
+        resp = client.post("/api/auth/login", json=payload)
+        assert resp.status_code == 429, f"6-й запрос должен вернуть 429, получили {resp.status_code}"
+        assert "Слишком много попыток" in resp.json()["detail"]
+
 
 # ===== Пермишены =====
 

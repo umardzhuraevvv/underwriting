@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.database import Base, get_db, Role, User, UnderwritingRule, RiskRule
 from app.auth import hash_password, create_access_token
 from app.main import app
+from app.limiter import limiter
 
 # SQLite in-memory с StaticPool — гарантирует одно соединение для всех сессий
 TEST_ENGINE = create_engine(
@@ -23,6 +24,7 @@ TestSession = sessionmaker(autocommit=False, autoflush=False, bind=TEST_ENGINE)
 def db_session():
     """Создаёт все таблицы, возвращает сессию, откатывает после теста."""
     Base.metadata.create_all(bind=TEST_ENGINE)
+    limiter._storage.reset()
     session = TestSession()
     try:
         yield session

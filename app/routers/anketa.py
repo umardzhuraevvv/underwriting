@@ -6,13 +6,15 @@ import secrets
 from datetime import date, datetime, timedelta
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, BeforeValidator
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func
 
 from app.database import get_db, Anketa, User, Role, UnderwritingRule, AnketaHistory, RiskRule, EditRequest, Notification, AnketaViewLog
 from app.auth import get_current_user, get_user_permissions
+from app.services.pdf_service import generate_anketa_pdf
 
 
 def _coerce_float(v: Any) -> float | None:
@@ -1285,6 +1287,32 @@ def get_anketa(
     return anketa_to_detail(anketa, db)
 
 
+@router.get("/{anketa_id}/pdf")
+def download_anketa_pdf(
+    anketa_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Скачать PDF анкеты."""
+    anketa = db.query(Anketa).filter(Anketa.id == anketa_id).first()
+    if not anketa:
+        raise HTTPException(status_code=404, detail="Анкета не найдена")
+    check_anketa_access(anketa, user, db)
+
+    creator = db.query(User).filter(User.id == anketa.created_by).first()
+    concluder = None
+    if anketa.concluded_by:
+        concluder = db.query(User).filter(User.id == anketa.concluded_by).first()
+
+    pdf_bytes = generate_anketa_pdf(anketa, creator, concluder)
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="anketa_{anketa_id}.pdf"'},
+    )
+
+
 @router.patch("/{anketa_id}")
 def update_anketa(
     anketa_id: int,
@@ -1473,6 +1501,7 @@ def save_anketa(
 def conclude_anketa(
     anketa_id: int,
     data: ConclusionRequest,
+    background_tasks: BackgroundTasks,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -1565,6 +1594,11 @@ def conclude_anketa(
 
     db.commit()
     db.refresh(anketa)
+
+    # Отправить webhook-уведомления асинхронно (не блокирует ответ)
+    from app.services.webhook_service import notify_webhooks
+    background_tasks.add_task(notify_webhooks, db, f"anketa.{data.decision}", anketa)
+
     return anketa_to_detail(anketa, db)
 
 

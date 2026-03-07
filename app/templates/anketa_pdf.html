@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: A4;
+    margin: 15mm 20mm;
+  }
+  body {
+    font-family: sans-serif;
+    font-size: 11pt;
+    color: #222;
+    line-height: 1.4;
+  }
+  h1 {
+    font-size: 16pt;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #666;
+    font-size: 10pt;
+    margin-bottom: 20px;
+  }
+  .section {
+    margin-bottom: 16px;
+    page-break-inside: avoid;
+  }
+  .section-title {
+    font-size: 12pt;
+    font-weight: bold;
+    border-bottom: 2px solid #2196F3;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    color: #1565C0;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 8px;
+  }
+  td {
+    padding: 4px 8px;
+    vertical-align: top;
+    border-bottom: 1px solid #eee;
+  }
+  td.label {
+    width: 45%;
+    color: #555;
+    font-weight: 500;
+  }
+  td.value {
+    width: 55%;
+  }
+  .verdict-approved { color: #2e7d32; font-weight: bold; }
+  .verdict-review { color: #e65100; font-weight: bold; }
+  .verdict-rejected { color: #c62828; font-weight: bold; }
+  .footer {
+    margin-top: 30px;
+    padding-top: 10px;
+    border-top: 1px solid #ccc;
+    font-size: 9pt;
+    color: #888;
+    text-align: center;
+  }
+  .reasons-list {
+    margin: 4px 0;
+    padding-left: 20px;
+  }
+  .reasons-list li {
+    margin-bottom: 2px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Анкета андеррайтинга №{{ anketa.id }}</h1>
+<div class="subtitle">Создана: {{ created_at }} | Тип: {{ client_type_label }}</div>
+
+{% if anketa.client_type != 'legal_entity' %}
+{# ===== ФИЗЛИЦО ===== #}
+
+<div class="section">
+  <div class="section-title">1. Личные данные</div>
+  <table>
+    <tr><td class="label">ФИО</td><td class="value">{{ anketa.full_name or '—' }}</td></tr>
+    <tr><td class="label">Дата рождения</td><td class="value">{{ birth_date or '—' }}</td></tr>
+    <tr><td class="label">Адрес регистрации</td><td class="value">{{ anketa.registration_address or '—' }}</td></tr>
+    <tr><td class="label">Ориентир (прописка)</td><td class="value">{{ anketa.registration_landmark or '—' }}</td></tr>
+    <tr><td class="label">Фактический адрес</td><td class="value">{{ anketa.actual_address or '—' }}</td></tr>
+    <tr><td class="label">Ориентир (факт.)</td><td class="value">{{ anketa.actual_landmark or '—' }}</td></tr>
+    <tr><td class="label">Телефоны</td><td class="value">{{ anketa.phone_numbers or '—' }}</td></tr>
+    <tr><td class="label">Телефоны родственников</td><td class="value">{{ anketa.relative_phones or '—' }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">2. Условия сделки</div>
+  <table>
+    <tr><td class="label">Партнёр</td><td class="value">{{ anketa.partner or '—' }}</td></tr>
+    <tr><td class="label">Марка</td><td class="value">{{ anketa.car_brand or '—' }}</td></tr>
+    <tr><td class="label">Модель</td><td class="value">{{ anketa.car_model or '—' }}</td></tr>
+    <tr><td class="label">Комплектация</td><td class="value">{{ anketa.car_specs or '—' }}</td></tr>
+    <tr><td class="label">Год выпуска</td><td class="value">{{ anketa.car_year or '—' }}</td></tr>
+    <tr><td class="label">Пробег (км)</td><td class="value">{{ fmt_number(anketa.mileage) }}</td></tr>
+    <tr><td class="label">Цена автомобиля</td><td class="value">{{ fmt_number(anketa.purchase_price) }}</td></tr>
+    <tr><td class="label">Первоначальный взнос (%)</td><td class="value">{{ fmt_number(anketa.down_payment_percent) }}</td></tr>
+    <tr><td class="label">Первоначальный взнос (сумма)</td><td class="value">{{ fmt_number(anketa.down_payment_amount) }}</td></tr>
+    <tr><td class="label">Остаток</td><td class="value">{{ fmt_number(anketa.remaining_amount) }}</td></tr>
+    <tr><td class="label">Срок (мес.)</td><td class="value">{{ anketa.lease_term_months or '—' }}</td></tr>
+    <tr><td class="label">Ставка (%)</td><td class="value">{{ fmt_number(anketa.interest_rate) }}</td></tr>
+    <tr><td class="label">Ежемесячный платёж</td><td class="value">{{ fmt_number(anketa.monthly_payment) }}</td></tr>
+    <tr><td class="label">Цель покупки</td><td class="value">{{ anketa.purchase_purpose or '—' }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">3. Доходы</div>
+  <table>
+    <tr><td class="label">Официальное трудоустройство</td><td class="value">{{ anketa.has_official_employment or '—' }}</td></tr>
+    <tr><td class="label">Работодатель</td><td class="value">{{ anketa.employer_name or '—' }}</td></tr>
+    <tr><td class="label">Период зарплаты (мес.)</td><td class="value">{{ fmt_number(anketa.salary_period_months) }}</td></tr>
+    <tr><td class="label">Общая зарплата за период</td><td class="value">{{ fmt_number(anketa.total_salary) }}</td></tr>
+    <tr><td class="label">Основная деятельность</td><td class="value">{{ anketa.main_activity or '—' }}</td></tr>
+    <tr><td class="label">Период (мес.)</td><td class="value">{{ fmt_number(anketa.main_activity_period) }}</td></tr>
+    <tr><td class="label">Доход от осн. деятельности</td><td class="value">{{ fmt_number(anketa.main_activity_income) }}</td></tr>
+    <tr><td class="label">Доп. источник дохода</td><td class="value">{{ anketa.additional_income_source or '—' }}</td></tr>
+    <tr><td class="label">Период (мес.)</td><td class="value">{{ fmt_number(anketa.additional_income_period) }}</td></tr>
+    <tr><td class="label">Доп. доход за период</td><td class="value">{{ fmt_number(anketa.additional_income_total) }}</td></tr>
+    <tr><td class="label">Прочий источник дохода</td><td class="value">{{ anketa.other_income_source or '—' }}</td></tr>
+    <tr><td class="label">Период (мес.)</td><td class="value">{{ fmt_number(anketa.other_income_period) }}</td></tr>
+    <tr><td class="label">Прочий доход за период</td><td class="value">{{ fmt_number(anketa.other_income_total) }}</td></tr>
+    <tr><td class="label">Общий месячный доход</td><td class="value"><strong>{{ fmt_number(anketa.total_monthly_income) }}</strong></td></tr>
+    <tr><td class="label">Имущество</td><td class="value">{{ anketa.property_type or '—' }}</td></tr>
+    <tr><td class="label">Детали имущества</td><td class="value">{{ anketa.property_details or '—' }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">4. Кредитная история</div>
+  <table>
+    <tr><td class="label">Текущие обязательства</td><td class="value">{{ anketa.has_current_obligations or '—' }}</td></tr>
+    <tr><td class="label">Сумма обязательств</td><td class="value">{{ fmt_number(anketa.total_obligations_amount) }}</td></tr>
+    <tr><td class="label">Кол-во обязательств</td><td class="value">{{ anketa.obligations_count or '—' }}</td></tr>
+    <tr><td class="label">Ежемесячный платёж по обязательствам</td><td class="value">{{ fmt_number(anketa.monthly_obligations_payment) }}</td></tr>
+    <tr><td class="label">DTI (%)</td><td class="value"><strong>{{ fmt_number(anketa.dti) }}</strong></td></tr>
+    <tr><td class="label">Закрытые обязательства</td><td class="value">{{ anketa.closed_obligations_count or '—' }}</td></tr>
+    <tr><td class="label">Макс. просрочка осн. долга (дней)</td><td class="value">{{ anketa.max_overdue_principal_days or '—' }}</td></tr>
+    <tr><td class="label">Сумма просрочки осн. долга</td><td class="value">{{ fmt_number(anketa.max_overdue_principal_amount) }}</td></tr>
+    <tr><td class="label">Макс. просрочка % (дней)</td><td class="value">{{ anketa.max_continuous_overdue_percent_days or '—' }}</td></tr>
+    <tr><td class="label">Сумма просрочки %</td><td class="value">{{ fmt_number(anketa.max_overdue_percent_amount) }}</td></tr>
+    <tr><td class="label">Категория просрочки</td><td class="value">{{ anketa.overdue_category or '—' }}</td></tr>
+    <tr><td class="label">Дата последней просрочки</td><td class="value">{{ last_overdue_date or '—' }}</td></tr>
+  </table>
+</div>
+
+{% else %}
+{# ===== ЮРЛИЦО ===== #}
+
+<div class="section">
+  <div class="section-title">1. Данные компании</div>
+  <table>
+    <tr><td class="label">Название компании</td><td class="value">{{ anketa.company_name or '—' }}</td></tr>
+    <tr><td class="label">ИНН</td><td class="value">{{ anketa.company_inn or '—' }}</td></tr>
+    <tr><td class="label">ОКЭД</td><td class="value">{{ anketa.company_oked or '—' }}</td></tr>
+    <tr><td class="label">Юридический адрес</td><td class="value">{{ anketa.company_legal_address or '—' }}</td></tr>
+    <tr><td class="label">Фактический адрес</td><td class="value">{{ anketa.company_actual_address or '—' }}</td></tr>
+    <tr><td class="label">Телефон компании</td><td class="value">{{ anketa.company_phone or '—' }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">2. Директор</div>
+  <table>
+    <tr><td class="label">ФИО директора</td><td class="value">{{ anketa.director_full_name or '—' }}</td></tr>
+    <tr><td class="label">Телефон директора</td><td class="value">{{ anketa.director_phone or '—' }}</td></tr>
+    <tr><td class="label">Телефон родственника</td><td class="value">{{ anketa.director_family_phone or '—' }}</td></tr>
+    <tr><td class="label">Кем приходится</td><td class="value">{{ anketa.director_family_relation or '—' }}</td></tr>
+    <tr><td class="label">Контактное лицо</td><td class="value">{{ anketa.contact_person_name or '—' }}</td></tr>
+    <tr><td class="label">Должность</td><td class="value">{{ anketa.contact_person_role or '—' }}</td></tr>
+    <tr><td class="label">Телефон контактного лица</td><td class="value">{{ anketa.contact_person_phone or '—' }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">3. Условия сделки</div>
+  <table>
+    <tr><td class="label">Партнёр</td><td class="value">{{ anketa.partner or '—' }}</td></tr>
+    <tr><td class="label">Марка</td><td class="value">{{ anketa.car_brand or '—' }}</td></tr>
+    <tr><td class="label">Модель</td><td class="value">{{ anketa.car_model or '—' }}</td></tr>
+    <tr><td class="label">Комплектация</td><td class="value">{{ anketa.car_specs or '—' }}</td></tr>
+    <tr><td class="label">Год выпуска</td><td class="value">{{ anketa.car_year or '—' }}</td></tr>
+    <tr><td class="label">Пробег (км)</td><td class="value">{{ fmt_number(anketa.mileage) }}</td></tr>
+    <tr><td class="label">Цена автомобиля</td><td class="value">{{ fmt_number(anketa.purchase_price) }}</td></tr>
+    <tr><td class="label">Первоначальный взнос (%)</td><td class="value">{{ fmt_number(anketa.down_payment_percent) }}</td></tr>
+    <tr><td class="label">Первоначальный взнос (сумма)</td><td class="value">{{ fmt_number(anketa.down_payment_amount) }}</td></tr>
+    <tr><td class="label">Остаток</td><td class="value">{{ fmt_number(anketa.remaining_amount) }}</td></tr>
+    <tr><td class="label">Срок (мес.)</td><td class="value">{{ anketa.lease_term_months or '—' }}</td></tr>
+    <tr><td class="label">Ставка (%)</td><td class="value">{{ fmt_number(anketa.interest_rate) }}</td></tr>
+    <tr><td class="label">Ежемесячный платёж</td><td class="value">{{ fmt_number(anketa.monthly_payment) }}</td></tr>
+    <tr><td class="label">Цель покупки</td><td class="value">{{ anketa.purchase_purpose or '—' }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">4. Доходы</div>
+  <table>
+    <tr><td class="label">Выручка компании (период, мес.)</td><td class="value">{{ fmt_number(anketa.company_revenue_period) }}</td></tr>
+    <tr><td class="label">Выручка компании за период</td><td class="value">{{ fmt_number(anketa.company_revenue_total) }}</td></tr>
+    <tr><td class="label">Чистая прибыль за период</td><td class="value">{{ fmt_number(anketa.company_net_profit) }}</td></tr>
+    <tr><td class="label">Доход директора (период, мес.)</td><td class="value">{{ fmt_number(anketa.director_income_period) }}</td></tr>
+    <tr><td class="label">Доход директора за период</td><td class="value">{{ fmt_number(anketa.director_income_total) }}</td></tr>
+    <tr><td class="label">Общий месячный доход</td><td class="value"><strong>{{ fmt_number(anketa.total_monthly_income) }}</strong></td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">5. Кредитная история компании</div>
+  <table>
+    <tr><td class="label">Обязательства компании</td><td class="value">{{ anketa.company_has_obligations or '—' }}</td></tr>
+    <tr><td class="label">Сумма обязательств</td><td class="value">{{ fmt_number(anketa.company_obligations_amount) }}</td></tr>
+    <tr><td class="label">Кол-во обязательств</td><td class="value">{{ anketa.company_obligations_count or '—' }}</td></tr>
+    <tr><td class="label">Ежемесячный платёж</td><td class="value">{{ fmt_number(anketa.company_monthly_payment) }}</td></tr>
+    <tr><td class="label">Категория просрочки</td><td class="value">{{ anketa.company_overdue_category or '—' }}</td></tr>
+    <tr><td class="label">Дата посл. просрочки</td><td class="value">{{ fmt_date(anketa.company_last_overdue_date) }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">6. Кредитная история директора</div>
+  <table>
+    <tr><td class="label">Обязательства директора</td><td class="value">{{ anketa.director_has_obligations or '—' }}</td></tr>
+    <tr><td class="label">Сумма обязательств</td><td class="value">{{ fmt_number(anketa.director_obligations_amount) }}</td></tr>
+    <tr><td class="label">Кол-во обязательств</td><td class="value">{{ anketa.director_obligations_count or '—' }}</td></tr>
+    <tr><td class="label">Ежемесячный платёж</td><td class="value">{{ fmt_number(anketa.director_monthly_payment) }}</td></tr>
+    <tr><td class="label">Категория просрочки</td><td class="value">{{ anketa.director_overdue_category or '—' }}</td></tr>
+    <tr><td class="label">Дата посл. просрочки</td><td class="value">{{ fmt_date(anketa.director_last_overdue_date) }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">7. Поручитель</div>
+  <table>
+    <tr><td class="label">ФИО поручителя</td><td class="value">{{ anketa.guarantor_full_name or '—' }}</td></tr>
+    <tr><td class="label">Телефон</td><td class="value">{{ anketa.guarantor_phone or '—' }}</td></tr>
+    <tr><td class="label">Ежемесячный доход</td><td class="value">{{ fmt_number(anketa.guarantor_monthly_income) }}</td></tr>
+    <tr><td class="label">Категория просрочки</td><td class="value">{{ anketa.guarantor_overdue_category or '—' }}</td></tr>
+    <tr><td class="label">Дата посл. просрочки</td><td class="value">{{ fmt_date(anketa.guarantor_last_overdue_date) }}</td></tr>
+  </table>
+</div>
+
+<div class="section">
+  <div class="section-title">8. DTI</div>
+  <table>
+    <tr><td class="label">Ежемесячный платёж по обязательствам</td><td class="value">{{ fmt_number(anketa.monthly_obligations_payment) }}</td></tr>
+    <tr><td class="label">DTI (%)</td><td class="value"><strong>{{ fmt_number(anketa.dti) }}</strong></td></tr>
+  </table>
+</div>
+
+{% endif %}
+
+{# ===== АВТО-ВЕРДИКТ (общий для всех) ===== #}
+{% if anketa.auto_decision %}
+<div class="section">
+  <div class="section-title">{{ next_section }}. Авто-вердикт</div>
+  <table>
+    <tr>
+      <td class="label">Решение</td>
+      <td class="value">
+        <span class="verdict-{{ anketa.auto_decision }}">{{ decision_labels.get(anketa.auto_decision, anketa.auto_decision) }}</span>
+      </td>
+    </tr>
+    <tr><td class="label">Риск-грейд</td><td class="value">{{ anketa.risk_grade or '—' }}</td></tr>
+    <tr><td class="label">Рекомендованный ПВ (%)</td><td class="value">{{ fmt_number(anketa.recommended_pv) }}</td></tr>
+  </table>
+  {% if auto_reasons %}
+  <div style="margin-top: 4px;"><strong>Причины:</strong></div>
+  <ul class="reasons-list">
+    {% for reason in auto_reasons %}
+    <li>{{ reason }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>
+{% endif %}
+
+{# ===== ЗАКЛЮЧЕНИЕ ===== #}
+{% if anketa.decision %}
+<div class="section">
+  <div class="section-title">{{ next_section_conclusion }}. Заключение</div>
+  <table>
+    <tr>
+      <td class="label">Решение</td>
+      <td class="value">
+        <span class="verdict-{{ anketa.decision }}">{{ decision_labels.get(anketa.decision, anketa.decision) }}</span>
+      </td>
+    </tr>
+    <tr><td class="label">Финальный ПВ (%)</td><td class="value">{{ fmt_number(anketa.final_pv) }}</td></tr>
+    <tr><td class="label">Комментарий</td><td class="value">{{ anketa.conclusion_comment or '—' }}</td></tr>
+    <tr><td class="label">Заключил</td><td class="value">{{ concluder_name }}</td></tr>
+    <tr><td class="label">Дата заключения</td><td class="value">{{ concluded_at }}</td></tr>
+  </table>
+</div>
+{% endif %}
+
+<div class="footer">
+  Сформировано: {{ generated_at }} | Система Fintech Drive
+</div>
+
+</body>
+</html>

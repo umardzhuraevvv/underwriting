@@ -2,11 +2,20 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from app.database import init_db
+from app.limiter import limiter
 from app.routers import auth, admin, anketa
 from app.routers.anketa import public_router as anketa_public_router
+
+
+def _rate_limit_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Слишком много попыток входа. Попробуйте через минуту."},
+    )
 
 
 @asynccontextmanager
@@ -21,6 +30,8 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Fintech Drive — Андеррайтинг", lifespan=lifespan)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
 
 app.include_router(auth.router)
 app.include_router(admin.router)

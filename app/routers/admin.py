@@ -9,7 +9,7 @@ from typing import Optional
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 
-from app.database import get_db, User, Anketa, AnketaHistory, UnderwritingRule, RiskRule, EditRequest, Role, SystemSettings
+from app.database import get_db, User, Anketa, AnketaHistory, UnderwritingRule, RiskRule, EditRequest, Role, SystemSettings, WebhookConfig
 from app.auth import require_permission, hash_password, generate_password, get_user_permissions
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -550,6 +550,141 @@ def update_telegram_settings(
         db.add(SystemSettings(key="telegram_bot_token", value=token_val))
     db.commit()
     return TelegramSettingsOut(bot_token=token_val)
+
+
+# ---------- WEBHOOKS ----------
+
+class WebhookOut(BaseModel):
+    id: int
+    name: str
+    url: str
+    secret: Optional[str] = None
+    events: Optional[str] = "all"
+    is_active: bool = True
+    created_at: Optional[str] = None
+    created_by: Optional[int] = None
+
+
+class CreateWebhookRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    url: str = Field(min_length=1, max_length=500)
+    secret: Optional[str] = None
+    events: Optional[str] = "all"
+
+
+class UpdateWebhookRequest(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=200)
+    url: Optional[str] = Field(None, min_length=1, max_length=500)
+    secret: Optional[str] = None
+    events: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+def webhook_to_out(w: WebhookConfig) -> WebhookOut:
+    return WebhookOut(
+        id=w.id, name=w.name, url=w.url,
+        secret=w.secret, events=w.events, is_active=w.is_active,
+        created_at=w.created_at.isoformat() if w.created_at else None,
+        created_by=w.created_by,
+    )
+
+
+@router.get("/webhooks", response_model=list[WebhookOut])
+def list_webhooks(
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("rules_manage")),
+):
+    configs = db.query(WebhookConfig).order_by(WebhookConfig.id).all()
+    return [webhook_to_out(w) for w in configs]
+
+
+@router.post("/webhooks", response_model=WebhookOut)
+def create_webhook(
+    body: CreateWebhookRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("rules_manage")),
+):
+    config = WebhookConfig(
+        name=body.name.strip(),
+        url=body.url.strip(),
+        secret=body.secret.strip() if body.secret else None,
+        events=body.events or "all",
+        is_active=True,
+        created_by=user.id,
+    )
+    db.add(config)
+    db.commit()
+    db.refresh(config)
+    return webhook_to_out(config)
+
+
+@router.patch("/webhooks/{webhook_id}", response_model=WebhookOut)
+def update_webhook(
+    webhook_id: int,
+    body: UpdateWebhookRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("rules_manage")),
+):
+    config = db.query(WebhookConfig).filter(WebhookConfig.id == webhook_id).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="Webhook не найден")
+    if body.name is not None:
+        config.name = body.name.strip()
+    if body.url is not None:
+        config.url = body.url.strip()
+    if body.secret is not None:
+        config.secret = body.secret.strip() if body.secret else None
+    if body.events is not None:
+        config.events = body.events
+    if body.is_active is not None:
+        config.is_active = body.is_active
+    db.commit()
+    db.refresh(config)
+    return webhook_to_out(config)
+
+
+@router.delete("/webhooks/{webhook_id}")
+def delete_webhook(
+    webhook_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("rules_manage")),
+):
+    config = db.query(WebhookConfig).filter(WebhookConfig.id == webhook_id).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="Webhook не найден")
+    db.delete(config)
+    db.commit()
+    return {"detail": "Webhook удалён"}
+
+
+@router.post("/webhooks/{webhook_id}/test")
+def test_webhook(
+    webhook_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_permission("rules_manage")),
+):
+    config = db.query(WebhookConfig).filter(WebhookConfig.id == webhook_id).first()
+    if not config:
+        raise HTTPException(status_code=404, detail="Webhook не найден")
+
+    from app.services.webhook_service import send_webhook
+    from datetime import timezone
+    test_payload = {
+        "event": "test",
+        "anketa_id": 0,
+        "client_name": "Тестовый клиент",
+        "client_type": "individual",
+        "decision": "approved",
+        "dti": 45.5,
+        "purchase_price": 10000000,
+        "down_payment_percent": 20,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    try:
+        send_webhook(config, "test", test_payload)
+        return {"detail": "Тестовый webhook отправлен", "url": config.url}
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Ошибка отправки: {str(e)}")
 
 
 # ---------- EXCEL EXPORT ----------
