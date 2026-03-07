@@ -1,8 +1,11 @@
+import logging
 from datetime import date
 
 from sqlalchemy.orm import Session
 
 from app.database import Anketa, UnderwritingRule
+
+logger = logging.getLogger("app")
 
 
 def calc_annuity(principal: float, annual_rate: float, months: int) -> float:
@@ -306,6 +309,11 @@ def calc_auto_verdict(anketa: Anketa, rules: dict) -> dict:
     recommended_pv = min_pv + pv_add
     if current_pv < recommended_pv:
         reasons.append(f"Текущий ПВ {current_pv:.0f}% ниже рекомендуемого {recommended_pv:.0f}%")
+
+    logger.info(
+        "Авто-вердикт для анкеты #%s: %s, DTI=%.1f%%",
+        getattr(anketa, 'id', '?'), final, anketa.dti or 0,
+    )
 
     return {
         "auto_decision": final,

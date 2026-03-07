@@ -1,9 +1,12 @@
 import hashlib
 import json
+import logging
 import os
 from datetime import datetime
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+
+logger = logging.getLogger("app")
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -59,6 +62,7 @@ def create_anketa(
     db.add(anketa)
     db.commit()
     db.refresh(anketa)
+    logger.info("Анкета #%d создана пользователем %s", anketa.id, user.email)
     return {"id": anketa.id, "status": anketa.status}
 
 
@@ -374,6 +378,10 @@ def save_anketa(
 
     db.commit()
     db.refresh(anketa)
+    logger.info(
+        "Анкета #%d сохранена пользователем %s, авто-вердикт: %s, DTI=%.1f%%",
+        anketa.id, user.email, anketa.auto_decision, anketa.dti or 0,
+    )
     return anketa_to_detail(anketa, db)
 
 
@@ -412,6 +420,7 @@ def conclude_anketa(
 
     db.commit()
     db.refresh(anketa)
+    logger.info("Анкета #%d заключена: %s, пользователем %s", anketa.id, data.decision, user.email)
 
     # Отправить webhook-уведомления асинхронно (не блокирует ответ)
     from app.services.webhook_service import notify_webhooks
@@ -458,6 +467,7 @@ def delete_anketa(
     anketa.deletion_reason = reason
 
     db.commit()
+    logger.warning("Анкета #%d удалена пользователем %s, причина: %s", anketa.id, user.email, reason)
     return {"ok": True, "id": anketa.id}
 
 

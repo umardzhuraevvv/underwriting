@@ -1,14 +1,19 @@
+import logging
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from app.database import init_db
 from app.limiter import limiter
+from app.logging_config import setup_logging
 from app.routers import auth, admin, anketa
 from app.routers.anketa import public_router as anketa_public_router
+
+logger = logging.getLogger("app")
 
 
 def _rate_limit_handler(request, exc):
@@ -20,18 +25,43 @@ def _rate_limit_handler(request, exc):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    import traceback
+    setup_logging()
     try:
         init_db()
-    except Exception as e:
-        print(f"[INIT_DB ERROR] {e}")
-        traceback.print_exc()
+    except Exception:
+        logger.exception("Ошибка инициализации БД")
     yield
 
 
 app = FastAPI(title="Fintech Drive — Андеррайтинг", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_handler)
+
+
+@app.middleware("http")
+async def logging_middleware(request: Request, call_next):
+    start = time.time()
+    response = await call_next(request)
+    duration_ms = round((time.time() - start) * 1000)
+
+    # Extract user id from JWT if available
+    user_info = ""
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            from jose import jwt as jose_jwt
+            from app.auth import SECRET_KEY, ALGORITHM
+            payload = jose_jwt.decode(auth_header.split(" ", 1)[1], SECRET_KEY, algorithms=[ALGORITHM])
+            user_info = f" user_id={payload.get('sub', '?')}"
+        except Exception:
+            pass
+
+    logger.info(
+        "%s %s -> %s (%dms)%s",
+        request.method, request.url.path, response.status_code, duration_ms, user_info
+    )
+    return response
+
 
 app.include_router(auth.router)
 app.include_router(admin.router)
