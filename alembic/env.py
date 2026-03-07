@@ -1,7 +1,7 @@
 import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
+from sqlalchemy import engine_from_config, text
 from sqlalchemy import pool
 
 from alembic import context
@@ -46,6 +46,12 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Set lock timeout to avoid hanging on locked alembic_version table
+        dialect_name = connection.dialect.name
+        if dialect_name == "postgresql":
+            connection.execute(text("SET lock_timeout = '10s'"))
+            connection.execute(text("SET statement_timeout = '25s'"))
+
         context.configure(
             connection=connection, target_metadata=target_metadata
         )
