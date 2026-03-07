@@ -304,87 +304,13 @@ def get_db():
 
 
 def init_db():
+    """Seed начальных данных. Миграции схемы теперь через Alembic (alembic upgrade head).
+    create_all оставлен для тестов (SQLite in-memory)."""
     from app.auth import hash_password
 
     Base.metadata.create_all(bind=engine)
 
-    # Migration: add new columns if missing (idempotent)
-    new_columns = [
-        ("decision", "VARCHAR(30)"),
-        ("conclusion_comment", "TEXT"),
-        ("concluded_by", "INTEGER REFERENCES users(id)"),
-        ("concluded_at", "TIMESTAMP"),
-        ("pinfl_hash", "VARCHAR(64)"),
-        ("deleted_at", "TIMESTAMP"),
-        ("deleted_by", "INTEGER REFERENCES users(id)"),
-        ("deletion_reason", "TEXT"),
-        ("auto_decision", "VARCHAR(30)"),
-        ("auto_decision_reasons", "TEXT"),
-        ("recommended_pv", "FLOAT"),
-        ("mileage", "INTEGER"),
-        ("conclusion_version", "INTEGER DEFAULT 0"),
-        ("client_type", "VARCHAR(20) DEFAULT 'individual'"),
-        # Legal entity: company
-        ("company_name", "VARCHAR(300)"),
-        ("company_inn", "VARCHAR(14)"),
-        ("company_oked", "VARCHAR(200)"),
-        ("company_legal_address", "TEXT"),
-        ("company_actual_address", "TEXT"),
-        ("company_phone", "VARCHAR(50)"),
-        ("director_full_name", "VARCHAR(300)"),
-        ("director_phone", "VARCHAR(50)"),
-        ("director_family_phone", "VARCHAR(50)"),
-        ("director_family_relation", "VARCHAR(50)"),
-        ("contact_person_name", "VARCHAR(300)"),
-        ("contact_person_role", "VARCHAR(100)"),
-        ("contact_person_phone", "VARCHAR(50)"),
-        # Legal entity: company income
-        ("company_revenue_period", "FLOAT"),
-        ("company_revenue_total", "FLOAT"),
-        ("company_net_profit", "FLOAT"),
-        ("director_income_period", "FLOAT"),
-        ("director_income_total", "FLOAT"),
-        # Legal entity: company credit history
-        ("company_has_obligations", "VARCHAR(10)"),
-        ("company_obligations_amount", "FLOAT"),
-        ("company_obligations_count", "INTEGER"),
-        ("company_monthly_payment", "FLOAT"),
-        ("company_overdue_category", "VARCHAR(20)"),
-        ("company_last_overdue_date", "DATE"),
-        ("company_overdue_reason", "TEXT"),
-        # Legal entity: director credit history
-        ("director_has_obligations", "VARCHAR(10)"),
-        ("director_obligations_amount", "FLOAT"),
-        ("director_obligations_count", "INTEGER"),
-        ("director_monthly_payment", "FLOAT"),
-        ("director_overdue_category", "VARCHAR(20)"),
-        ("director_last_overdue_date", "DATE"),
-        ("director_overdue_reason", "TEXT"),
-        # Legal entity: guarantor
-        ("guarantor_full_name", "VARCHAR(300)"),
-        ("guarantor_pinfl", "VARCHAR(14)"),
-        ("guarantor_passport", "VARCHAR(20)"),
-        ("guarantor_phone", "VARCHAR(50)"),
-        ("guarantor_monthly_income", "FLOAT"),
-        ("guarantor_overdue_category", "VARCHAR(20)"),
-        ("guarantor_last_overdue_date", "DATE"),
-        # Risk grade & final PV
-        ("risk_grade", "VARCHAR(50)"),
-        ("no_scoring_response", "BOOLEAN DEFAULT FALSE"),
-        ("final_pv", "FLOAT"),
-        ("share_token", "VARCHAR(64)"),
-    ]
-    # Migrations: add columns that were added after initial release.
-    # create_all() does NOT add new columns to existing tables, so we must ALTER TABLE.
-    with engine.connect() as conn:
-        for col_name, col_type in new_columns:
-            try:
-                conn.execute(text(f"ALTER TABLE anketas ADD COLUMN {col_name} {col_type}"))
-                conn.commit()
-            except Exception:
-                conn.rollback()
-
-    # Migration: clear PINFL and passport data (security — fields removed from UI)
+    # TODO: убрать после полной очистки PINFL на всех средах
     with engine.connect() as conn:
         try:
             conn.execute(text(
@@ -395,20 +321,6 @@ def init_db():
             conn.commit()
         except Exception:
             conn.rollback()
-
-    # Migration: users table new columns
-    user_new_columns = [
-        ("role_id", "INTEGER REFERENCES roles(id)"),
-        ("telegram_chat_id", "VARCHAR(50)"),
-        ("is_superadmin", "BOOLEAN DEFAULT FALSE"),
-    ]
-    with engine.connect() as conn:
-        for col_name, col_type in user_new_columns:
-            try:
-                conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}"))
-                conn.commit()
-            except Exception:
-                conn.rollback()
 
     db = SessionLocal()
     try:
