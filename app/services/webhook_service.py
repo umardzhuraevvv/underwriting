@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import Anketa, WebhookConfig
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("app")
 
 
 def _build_payload(event: str, anketa: Anketa) -> dict:
