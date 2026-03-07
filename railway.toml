@@ -2,7 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "timeout 30 alembic upgrade head || echo 'ALEMBIC TIMEOUT/FAIL — starting anyway'; uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info"
+startCommand = "echo 'STEP1: starting' && python -c 'print(\"STEP2: python ok\")' && python -c 'from app.main import app; print(\"STEP3: import ok\")' && echo 'STEP4: launching uvicorn' && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level info"
 healthcheckPath = "/api/health"
 restartPolicyType = "on_failure"
 restartPolicyMaxRetries = 3
