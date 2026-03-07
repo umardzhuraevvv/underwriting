@@ -26,8 +26,8 @@ from app.schemas import (
     AnketaUpdate, EditRequestCreate, EditRequestOut,
 )
 
-router = APIRouter(prefix="/api/anketas", tags=["anketas"])
-public_router = APIRouter(prefix="/api/public", tags=["public"])
+router = APIRouter(prefix="/api/v1/anketas", tags=["anketas"])
+public_router = APIRouter(prefix="/api/v1/public", tags=["public"])
 
 
 # ---------- Endpoints ----------

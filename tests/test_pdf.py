@@ -39,7 +39,7 @@ def anketa_in_db(seeded_db):
 
 def test_pdf_endpoint_returns_pdf(client, admin_headers, anketa_in_db):
     """GET /api/anketas/{id}/pdf → 200, content-type = application/pdf."""
-    resp = client.get(f"/api/anketas/{anketa_in_db.id}/pdf", headers=admin_headers)
+    resp = client.get(f"/api/v1/anketas/{anketa_in_db.id}/pdf", headers=admin_headers)
     assert resp.status_code == 200
     assert resp.headers["content-type"] == "application/pdf"
     assert resp.headers["content-disposition"] == f'attachment; filename="anketa_{anketa_in_db.id}.pdf"'
@@ -49,13 +49,13 @@ def test_pdf_endpoint_returns_pdf(client, admin_headers, anketa_in_db):
 
 def test_pdf_unauthorized(client, anketa_in_db):
     """Без токена → 401."""
-    resp = client.get(f"/api/anketas/{anketa_in_db.id}/pdf")
+    resp = client.get(f"/api/v1/anketas/{anketa_in_db.id}/pdf")
     assert resp.status_code in (401, 403)
 
 
 def test_pdf_not_found(client, admin_headers):
     """Несуществующий id → 404."""
-    resp = client.get("/api/anketas/99999/pdf", headers=admin_headers)
+    resp = client.get("/api/v1/anketas/99999/pdf", headers=admin_headers)
     assert resp.status_code == 404
 
 
@@ -63,7 +63,7 @@ def test_pdf_access_denied_for_other_inspector(client, seeded_db, anketa_in_db):
     """Инспектор без anketa_view_all не может скачать чужую анкету."""
     inspector_token = create_access_token({"sub": seeded_db["inspector"].id})
     headers = {"Authorization": f"Bearer {inspector_token}"}
-    resp = client.get(f"/api/anketas/{anketa_in_db.id}/pdf", headers=headers)
+    resp = client.get(f"/api/v1/anketas/{anketa_in_db.id}/pdf", headers=headers)
     assert resp.status_code == 403
 
 
@@ -86,6 +86,6 @@ def test_pdf_legal_entity(client, admin_headers, seeded_db):
     db.commit()
     db.refresh(anketa)
 
-    resp = client.get(f"/api/anketas/{anketa.id}/pdf", headers=admin_headers)
+    resp = client.get(f"/api/v1/anketas/{anketa.id}/pdf", headers=admin_headers)
     assert resp.status_code == 200
     assert resp.content[:5] == b"%PDF-"

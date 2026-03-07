@@ -228,7 +228,7 @@ async function checkDuplicate(field, inputId, containerId) {
   if (currentAnketaId) params.set('exclude_id', currentAnketaId);
 
   try {
-    const res = await fetch('/api/anketas/check-duplicate?' + params, {
+    const res = await fetch('/api/v1/anketas/check-duplicate?' + params, {
       headers: authHeaders(),
       signal: controller.signal,
     });
@@ -635,7 +635,7 @@ async function loadUsers() {
   showSkeleton('usersTableBody', 'table-rows', 6);
 
   try {
-    const res = await fetch('/api/admin/users', { headers: authHeaders() });
+    const res = await fetch('/api/v1/admin/users', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) throw new Error('Failed to load users');
 
@@ -723,7 +723,7 @@ async function createUser() {
   btn.textContent = 'Создание...';
 
   try {
-    const res = await fetch('/api/admin/users', {
+    const res = await fetch('/api/v1/admin/users', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ full_name: fullName, email, role_id }),
@@ -800,7 +800,7 @@ async function saveUser() {
   if (password) body.password = password;
 
   try {
-    const res = await fetch('/api/admin/users/' + userId, {
+    const res = await fetch('/api/v1/admin/users/' + userId, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify(body),
@@ -836,7 +836,7 @@ async function resetUserPassword() {
   btn.textContent = 'Сброс...';
 
   try {
-    const res = await fetch('/api/admin/users/' + userId + '/reset-password', {
+    const res = await fetch('/api/v1/admin/users/' + userId + '/reset-password', {
       method: 'POST',
       headers: authHeaders(),
     });
@@ -865,7 +865,7 @@ async function deleteUser(userId) {
   if (!confirm('Вы уверены, что хотите удалить пользователя?')) return;
 
   try {
-    const res = await fetch('/api/admin/users/' + userId, {
+    const res = await fetch('/api/v1/admin/users/' + userId, {
       method: 'DELETE',
       headers: authHeaders(),
     });
@@ -1010,7 +1010,7 @@ async function loadAnketas() {
   showSkeleton('anketyTableBody', 'table-rows', 7);
 
   try {
-    const res = await fetch('/api/anketas', { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) throw new Error('Ошибка загрузки');
 
@@ -1138,7 +1138,7 @@ function openAnketa(id, status) {
 
 async function loadAnketaIntoForm(id) {
   try {
-    const res = await fetch('/api/anketas/' + id, { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas/' + id, { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) throw new Error('Ошибка загрузки анкеты');
 
@@ -1452,7 +1452,7 @@ function fillRelativePhones(data) {
 async function ensureAnketaCreated() {
   if (currentAnketaId) return true;
   try {
-    const res = await fetch('/api/anketas?client_type=' + encodeURIComponent(_currentClientType), {
+    const res = await fetch('/api/v1/anketas?client_type=' + encodeURIComponent(_currentClientType), {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + getToken() },
     });
@@ -1474,7 +1474,7 @@ async function saveAnketaDraft() {
   console.log('Saving draft, anketaId:', currentAnketaId, 'data:', data);
 
   try {
-    const res = await fetch('/api/anketas/' + currentAnketaId, {
+    const res = await fetch('/api/v1/anketas/' + currentAnketaId, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify(data),
@@ -1522,7 +1522,7 @@ async function saveAnketaFinal() {
   console.log('Saving final, anketaId:', currentAnketaId, 'data:', data);
 
   try {
-    const patchRes = await fetch('/api/anketas/' + currentAnketaId, {
+    const patchRes = await fetch('/api/v1/anketas/' + currentAnketaId, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify(data),
@@ -1541,7 +1541,7 @@ async function saveAnketaFinal() {
 
   // Finalize
   try {
-    const res = await fetch('/api/anketas/' + currentAnketaId + '/save', {
+    const res = await fetch('/api/v1/anketas/' + currentAnketaId + '/save', {
       method: 'POST',
       headers: authHeaders(),
     });
@@ -1738,7 +1738,7 @@ let _currentViewData = null;
 
 async function loadAnketaView(id) {
   try {
-    const res = await fetch('/api/anketas/' + id, { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas/' + id, { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) throw new Error('Анкета не найдена');
 
@@ -2447,7 +2447,7 @@ async function saveConclusion(anketaId) {
   if (finalPv !== null) reqBody.final_pv = finalPv;
 
   try {
-    const res = await fetch('/api/anketas/' + anketaId + '/conclude', {
+    const res = await fetch('/api/v1/anketas/' + anketaId + '/conclude', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify(reqBody),
@@ -2494,7 +2494,7 @@ async function confirmDeleteAnketa() {
   btn.textContent = 'Удаление...';
 
   try {
-    const res = await fetch('/api/anketas/' + id, {
+    const res = await fetch('/api/v1/anketas/' + id, {
       method: 'DELETE',
       headers: authHeaders(),
       body: JSON.stringify({ reason }),
@@ -2523,7 +2523,7 @@ async function confirmDeleteAnketa() {
 let _dashboardPeriod = 'week';
 
 async function loadDashboardStats() {
-  let url = '/api/anketas/stats?period=' + _dashboardPeriod;
+  let url = '/api/v1/anketas/stats?period=' + _dashboardPeriod;
   if (_dashboardPeriod === 'custom') {
     const from = document.getElementById('periodFrom')?.value;
     const to = document.getElementById('periodTo')?.value;
@@ -2704,7 +2704,7 @@ document.addEventListener('keydown', (e) => {
 
 async function loadVerdictRules() {
   try {
-    const res = await fetch('/api/anketas/verdict-rules', { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas/verdict-rules', { headers: authHeaders() });
     if (res.ok) {
       _verdictRules = await res.json();
     }
@@ -2724,7 +2724,7 @@ async function loadRules() {
   }
   showSkeleton('rulesContainer', 'cards');
   try {
-    const res = await fetch('/api/admin/rules', { headers: authHeaders() });
+    const res = await fetch('/api/v1/admin/rules', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) throw new Error('Ошибка загрузки правил');
     rulesData = await res.json();
@@ -2802,7 +2802,7 @@ async function saveRule(ruleId) {
   const value = el.value.trim();
 
   try {
-    const res = await fetch('/api/admin/rules/' + ruleId, {
+    const res = await fetch('/api/v1/admin/rules/' + ruleId, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify({ value }),
@@ -3002,7 +3002,7 @@ async function downloadExcel() {
   btn.disabled = true;
   btn.textContent = 'Загрузка...';
 
-  let url = '/api/admin/export-excel?';
+  let url = '/api/v1/admin/export-excel?';
   const from = document.getElementById('excelDateFrom')?.value;
   const to = document.getElementById('excelDateTo')?.value;
   if (from) url += 'date_from=' + from + '&';
@@ -3040,7 +3040,7 @@ async function loadRiskRules() {
   }
   showSkeleton('riskRulesContainer', 'cards');
   try {
-    const res = await fetch('/api/admin/risk-rules', { headers: authHeaders() });
+    const res = await fetch('/api/v1/admin/risk-rules', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) throw new Error('Ошибка загрузки риск-правил');
     riskRulesData = await res.json();
@@ -3090,7 +3090,7 @@ async function saveRiskRule(id) {
   if (!pvEl) return;
 
   try {
-    const res = await fetch('/api/admin/risk-rules/' + id, {
+    const res = await fetch('/api/v1/admin/risk-rules/' + id, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify({
@@ -3113,7 +3113,7 @@ async function deleteRiskRule(id, category) {
   if (!confirm('Удалить риск-правило "' + category + '"?')) return;
 
   try {
-    const res = await fetch('/api/admin/risk-rules/' + id, {
+    const res = await fetch('/api/v1/admin/risk-rules/' + id, {
       method: 'DELETE',
       headers: authHeaders(),
     });
@@ -3159,7 +3159,7 @@ async function createRiskRule() {
   }
 
   try {
-    const res = await fetch('/api/admin/risk-rules', {
+    const res = await fetch('/api/v1/admin/risk-rules', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ category, min_pv: minPv }),
@@ -3182,7 +3182,7 @@ async function createRiskRule() {
 
 async function loadClientRiskRules() {
   try {
-    const res = await fetch('/api/anketas/risk-rules', { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas/risk-rules', { headers: authHeaders() });
     if (res.ok) {
       _clientRiskRules = await res.json();
     }
@@ -3315,7 +3315,7 @@ async function submitEditRequest() {
   if (!_editRequestAnketaId) return;
 
   try {
-    const res = await fetch('/api/anketas/' + _editRequestAnketaId + '/edit-request', {
+    const res = await fetch('/api/v1/anketas/' + _editRequestAnketaId + '/edit-request', {
       method: 'POST',
       headers: authHeaders(),
       body: JSON.stringify({ reason }),
@@ -3341,7 +3341,7 @@ async function submitEditRequest() {
 async function loadEditRequests() {
   const filterEl = document.getElementById('editRequestsFilter');
   const status = filterEl ? filterEl.value : 'pending';
-  const url = '/api/anketas/edit-requests' + (status ? '?status=' + status : '');
+  const url = '/api/v1/anketas/edit-requests' + (status ? '?status=' + status : '');
 
   showSkeleton('editRequestsContainer', 'cards');
 
@@ -3414,7 +3414,7 @@ async function reviewEditRequest(requestId, status) {
   if (comment === null) return; // cancelled
 
   try {
-    const res = await fetch('/api/admin/edit-requests/' + requestId, {
+    const res = await fetch('/api/v1/admin/edit-requests/' + requestId, {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify({ status, comment: comment || null }),
@@ -3443,7 +3443,7 @@ async function loadPendingRequestsCount() {
   const _perms = currentUser.permissions || {};
   if (_perms.user_manage) {
     try {
-      const res = await fetch('/api/admin/edit-requests/count', { headers: authHeaders() });
+      const res = await fetch('/api/v1/admin/edit-requests/count', { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         const badge = document.getElementById('approvalsBadge');
@@ -3462,7 +3462,7 @@ async function loadPendingRequestsCount() {
   } else {
     // For inspectors, check their own pending requests
     try {
-      const res = await fetch('/api/anketas/edit-requests?status=pending', { headers: authHeaders() });
+      const res = await fetch('/api/v1/anketas/edit-requests?status=pending', { headers: authHeaders() });
       if (res.ok) {
         const data = await res.json();
         const badge = document.getElementById('approvalsBadge');
@@ -3526,7 +3526,7 @@ let _historySubtab = 'changes';
 
 async function loadAnketaHistory(anketaId) {
   try {
-    const res = await fetch('/api/anketas/' + anketaId + '/history', { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas/' + anketaId + '/history', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) return;
 
@@ -3611,7 +3611,7 @@ async function loadViewLog() {
   if (!container) return;
   container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-size:13px">Загрузка...</div>';
   try {
-    const res = await fetch('/api/anketas/' + anketaId + '/view-log', { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas/' + anketaId + '/view-log', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (!res.ok) { container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);font-size:13px">Ошибка загрузки</div>'; return; }
     const log = await res.json();
@@ -4024,7 +4024,7 @@ let _notifDropdownOpen = false;
 
 async function loadNotificationCount() {
   try {
-    const res = await fetch('/api/anketas/notifications/unread-count', { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas/notifications/unread-count', { headers: authHeaders() });
     if (res.status === 401) return;
     if (!res.ok) return;
     const data = await res.json();
@@ -4047,7 +4047,7 @@ function toggleNotificationPanel() {
 
 async function loadNotifications() {
   try {
-    const res = await fetch('/api/anketas/notifications/list', { headers: authHeaders() });
+    const res = await fetch('/api/v1/anketas/notifications/list', { headers: authHeaders() });
     if (!res.ok) return;
     const notifs = await res.json();
     renderNotifications(notifs);
@@ -4095,7 +4095,7 @@ function timeAgo(dateStr) {
 
 async function openNotificationAnketa(notifId, anketaId) {
   try {
-    await fetch('/api/anketas/notifications/' + notifId + '/read', {
+    await fetch('/api/v1/anketas/notifications/' + notifId + '/read', {
       method: 'PATCH', headers: authHeaders()
     });
   } catch (e) { /* silent */ }
@@ -4107,7 +4107,7 @@ async function openNotificationAnketa(notifId, anketaId) {
 
 async function markNotificationRead(notifId) {
   try {
-    await fetch('/api/anketas/notifications/' + notifId + '/read', {
+    await fetch('/api/v1/anketas/notifications/' + notifId + '/read', {
       method: 'PATCH', headers: authHeaders()
     });
     loadNotifications();
@@ -4117,7 +4117,7 @@ async function markNotificationRead(notifId) {
 
 async function markAllNotificationsRead() {
   try {
-    await fetch('/api/anketas/notifications/read-all', {
+    await fetch('/api/v1/anketas/notifications/read-all', {
       method: 'POST', headers: authHeaders()
     });
     loadNotifications();
@@ -4137,7 +4137,7 @@ document.addEventListener('click', (e) => {
 // ---------- ANALYTICS ----------
 
 async function loadAnalytics() {
-  let url = '/api/anketas/analytics?period=' + _dashboardPeriod;
+  let url = '/api/v1/anketas/analytics?period=' + _dashboardPeriod;
   if (_dashboardPeriod === 'custom') {
     const from = document.getElementById('periodFrom')?.value;
     const to = document.getElementById('periodTo')?.value;
@@ -4487,7 +4487,7 @@ async function loadRoles() {
   showSkeleton('rolesTableBody', 'table-rows', 11);
 
   try {
-    const res = await fetch('/api/admin/roles', { headers: authHeaders() });
+    const res = await fetch('/api/v1/admin/roles', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (res.status === 403) { navigate('dashboard'); return; }
     if (!res.ok) throw new Error('Failed to load roles');
@@ -4546,7 +4546,7 @@ async function createRole() {
   const body = { name };
   PERM_KEYS.forEach(k => { body[k] = document.getElementById('newRolePerm_' + k).checked; });
   try {
-    const res = await fetch('/api/admin/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
+    const res = await fetch('/api/v1/admin/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
     if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Ошибка'); }
     closeCreateRoleModal();
     showToast('Должность создана');
@@ -4574,7 +4574,7 @@ async function saveRole() {
   const body = { name };
   PERM_KEYS.forEach(k => { body[k] = document.getElementById('editRolePerm_' + k).checked; });
   try {
-    const res = await fetch('/api/admin/roles/' + roleId, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+    const res = await fetch('/api/v1/admin/roles/' + roleId, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
     if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Ошибка'); }
     closeEditRoleModal();
     showToast('Должность обновлена');
@@ -4585,7 +4585,7 @@ async function saveRole() {
 async function deleteRole(roleId) {
   if (!confirm('Удалить эту должность?')) return;
   try {
-    const res = await fetch('/api/admin/roles/' + roleId, { method: 'DELETE', headers: authHeaders() });
+    const res = await fetch('/api/v1/admin/roles/' + roleId, { method: 'DELETE', headers: authHeaders() });
     if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Ошибка'); }
     showToast('Должность удалена');
     loadRoles();
@@ -4596,7 +4596,7 @@ async function loadRolesDropdown(selectId, selectedId) {
   const sel = document.getElementById(selectId);
   sel.innerHTML = '<option value="">— загрузка —</option>';
   try {
-    const res = await fetch('/api/admin/roles', { headers: authHeaders() });
+    const res = await fetch('/api/v1/admin/roles', { headers: authHeaders() });
     if (!res.ok) throw new Error('Ошибка');
     const roles = await res.json();
     sel.innerHTML = roles.map(r =>
@@ -4620,7 +4620,7 @@ async function loadEmployeeStats() {
     navigate('dashboard');
     return;
   }
-  let url = '/api/anketas/employee-stats/data?period=' + _empStatsPeriod;
+  let url = '/api/v1/anketas/employee-stats/data?period=' + _empStatsPeriod;
   if (_empStatsPeriod === 'custom' && _empStatsFrom && _empStatsTo) {
     url += '&date_from=' + _empStatsFrom + '&date_to=' + _empStatsTo;
   }
@@ -4686,7 +4686,7 @@ function applyEmpStatsCustomPeriod() {
 async function openTelegramSettingsModal() {
   document.getElementById('telegramSettingsModal').classList.add('show');
   try {
-    const res = await fetch('/api/admin/settings/telegram', { headers: authHeaders() });
+    const res = await fetch('/api/v1/admin/settings/telegram', { headers: authHeaders() });
     if (res.ok) {
       const data = await res.json();
       document.getElementById('telegramBotToken').value = data.bot_token || '';
@@ -4701,7 +4701,7 @@ function closeTelegramSettingsModal() {
 async function saveTelegramSettings() {
   const token = document.getElementById('telegramBotToken').value.trim();
   try {
-    const res = await fetch('/api/admin/settings/telegram', {
+    const res = await fetch('/api/v1/admin/settings/telegram', {
       method: 'PATCH',
       headers: authHeaders(),
       body: JSON.stringify({ bot_token: token || null }),

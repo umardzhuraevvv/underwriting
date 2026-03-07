@@ -6,7 +6,7 @@ from app.database import get_db, User
 from app.auth import verify_password, create_access_token, get_current_user, get_user_permissions
 from app.limiter import limiter
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
 class LoginRequest(BaseModel):

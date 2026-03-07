@@ -15,7 +15,7 @@ from app.services.webhook_service import _sign_payload, _build_payload, send_web
 
 class TestWebhookCRUD:
     def test_create_webhook(self, client, admin_headers, seeded_db):
-        resp = client.post("/api/admin/webhooks", json={
+        resp = client.post("/api/v1/admin/webhooks", json={
             "name": "Партнёр X",
             "url": "https://partner.example.com/webhook",
             "secret": "my_secret_key",
@@ -32,14 +32,14 @@ class TestWebhookCRUD:
 
     def test_list_webhooks(self, client, admin_headers, seeded_db):
         # Создать два webhook-конфига
-        client.post("/api/admin/webhooks", json={
+        client.post("/api/v1/admin/webhooks", json={
             "name": "Hook 1", "url": "https://hook1.example.com/wh",
         }, headers=admin_headers)
-        client.post("/api/admin/webhooks", json={
+        client.post("/api/v1/admin/webhooks", json={
             "name": "Hook 2", "url": "https://hook2.example.com/wh",
         }, headers=admin_headers)
 
-        resp = client.get("/api/admin/webhooks", headers=admin_headers)
+        resp = client.get("/api/v1/admin/webhooks", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 2
@@ -47,12 +47,12 @@ class TestWebhookCRUD:
         assert names == {"Hook 1", "Hook 2"}
 
     def test_update_webhook(self, client, admin_headers, seeded_db):
-        create_resp = client.post("/api/admin/webhooks", json={
+        create_resp = client.post("/api/v1/admin/webhooks", json={
             "name": "Test", "url": "https://test.example.com/wh",
         }, headers=admin_headers)
         wh_id = create_resp.json()["id"]
 
-        resp = client.patch(f"/api/admin/webhooks/{wh_id}", json={
+        resp = client.patch(f"/api/v1/admin/webhooks/{wh_id}", json={
             "name": "Updated",
             "url": "https://updated.example.com/wh",
             "is_active": False,
@@ -64,27 +64,27 @@ class TestWebhookCRUD:
         assert data["is_active"] is False
 
     def test_delete_webhook(self, client, admin_headers, seeded_db):
-        create_resp = client.post("/api/admin/webhooks", json={
+        create_resp = client.post("/api/v1/admin/webhooks", json={
             "name": "ToDelete", "url": "https://del.example.com/wh",
         }, headers=admin_headers)
         wh_id = create_resp.json()["id"]
 
-        resp = client.delete(f"/api/admin/webhooks/{wh_id}", headers=admin_headers)
+        resp = client.delete(f"/api/v1/admin/webhooks/{wh_id}", headers=admin_headers)
         assert resp.status_code == 200
 
-        list_resp = client.get("/api/admin/webhooks", headers=admin_headers)
+        list_resp = client.get("/api/v1/admin/webhooks", headers=admin_headers)
         assert len(list_resp.json()) == 0
 
     def test_webhook_requires_rules_manage(self, client, inspector_headers, seeded_db):
-        resp = client.get("/api/admin/webhooks", headers=inspector_headers)
+        resp = client.get("/api/v1/admin/webhooks", headers=inspector_headers)
         assert resp.status_code == 403
 
     def test_update_nonexistent_webhook(self, client, admin_headers, seeded_db):
-        resp = client.patch("/api/admin/webhooks/9999", json={"name": "X"}, headers=admin_headers)
+        resp = client.patch("/api/v1/admin/webhooks/9999", json={"name": "X"}, headers=admin_headers)
         assert resp.status_code == 404
 
     def test_delete_nonexistent_webhook(self, client, admin_headers, seeded_db):
-        resp = client.delete("/api/admin/webhooks/9999", headers=admin_headers)
+        resp = client.delete("/api/v1/admin/webhooks/9999", headers=admin_headers)
         assert resp.status_code == 404
 
 
@@ -182,13 +182,13 @@ class TestWebhookOnConclude:
         db.commit()
 
         # Создать → заполнить → сохранить → заключить анкету
-        create_resp = client.post("/api/anketas?client_type=individual", headers=admin_headers)
+        create_resp = client.post("/api/v1/anketas?client_type=individual", headers=admin_headers)
         anketa_id = create_resp.json()["id"]
-        client.patch(f"/api/anketas/{anketa_id}", json=sample_anketa_data, headers=admin_headers)
-        client.post(f"/api/anketas/{anketa_id}/save", headers=admin_headers)
+        client.patch(f"/api/v1/anketas/{anketa_id}", json=sample_anketa_data, headers=admin_headers)
+        client.post(f"/api/v1/anketas/{anketa_id}/save", headers=admin_headers)
 
         resp = client.post(
-            f"/api/anketas/{anketa_id}/conclude",
+            f"/api/v1/anketas/{anketa_id}/conclude",
             json={"decision": "approved", "comment": "OK", "final_pv": 20},
             headers=admin_headers,
         )
@@ -225,13 +225,13 @@ class TestWebhookOnConclude:
         db.add(wh)
         db.commit()
 
-        create_resp = client.post("/api/anketas?client_type=individual", headers=admin_headers)
+        create_resp = client.post("/api/v1/anketas?client_type=individual", headers=admin_headers)
         anketa_id = create_resp.json()["id"]
-        client.patch(f"/api/anketas/{anketa_id}", json=sample_anketa_data, headers=admin_headers)
-        client.post(f"/api/anketas/{anketa_id}/save", headers=admin_headers)
+        client.patch(f"/api/v1/anketas/{anketa_id}", json=sample_anketa_data, headers=admin_headers)
+        client.post(f"/api/v1/anketas/{anketa_id}/save", headers=admin_headers)
 
         resp = client.post(
-            f"/api/anketas/{anketa_id}/conclude",
+            f"/api/v1/anketas/{anketa_id}/conclude",
             json={"decision": "approved", "comment": "OK", "final_pv": 20},
             headers=admin_headers,
         )
