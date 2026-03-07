@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from slowapi.errors import RateLimitExceeded
 
 from app.database import init_db
@@ -75,6 +75,13 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 @app.get("/api/health", response_model=HealthResponse)
 def health():
     return {"status": "ok"}
+
+
+# Обратная совместимость: /api/{path} → /api/v1/{path}
+@app.api_route("/api/{path:path}", methods=["GET", "POST", "PATCH", "DELETE", "PUT"])
+async def legacy_redirect(path: str, request: Request):
+    new_url = str(request.url).replace("/api/", "/api/v1/", 1)
+    return RedirectResponse(url=new_url, status_code=307)
 
 
 @app.get("/login")

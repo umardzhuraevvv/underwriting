@@ -423,7 +423,7 @@
     (function() {
       var path = window.location.pathname;
       var token = path.replace('/public/anketa/', '');
-      fetch('/api/public/anketa/' + encodeURIComponent(token))
+      fetch('/api/v1/public/anketa/' + encodeURIComponent(token))
         .then(function(res) {
           if (!res.ok) throw new Error(res.status === 404 ? 'Анкета не найдена' : 'Ошибка загрузки');
           return res.json();

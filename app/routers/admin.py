@@ -12,7 +12,7 @@ from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from app.database import get_db, User, Anketa, AnketaHistory, UnderwritingRule, RiskRule, EditRequest, Role, SystemSettings, WebhookConfig
 from app.auth import require_permission, hash_password, generate_password, get_user_permissions
 
-router = APIRouter(prefix="/api/admin", tags=["admin"])
+router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
 
 # ---------- ROLES CRUD ----------

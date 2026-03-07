@@ -31,11 +31,11 @@ class TestJWT:
             {"sub": "1", "exp": datetime.now(timezone.utc) - timedelta(hours=1)},
             SECRET_KEY, algorithm=ALGORITHM,
         )
-        resp = client.get("/api/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
+        resp = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
         assert resp.status_code == 401, f"Просроченный токен → 401, получили {resp.status_code}"
 
     def test_invalid_token(self, client, seeded_db):
-        resp = client.get("/api/auth/me", headers={"Authorization": "Bearer invalid_random_string"})
+        resp = client.get("/api/v1/auth/me", headers={"Authorization": "Bearer invalid_random_string"})
         assert resp.status_code == 401, f"Невалидный токен → 401, получили {resp.status_code}"
 
 
@@ -44,18 +44,18 @@ class TestJWT:
 class TestLogin:
 
     def test_login_success(self, client, seeded_db):
-        resp = client.post("/api/auth/login", json={"email": "admin@test.com", "password": "Admin123!"})
+        resp = client.post("/api/v1/auth/login", json={"email": "admin@test.com", "password": "Admin123!"})
         assert resp.status_code == 200, f"Успешный логин → 200, получили {resp.status_code}"
         data = resp.json()
         assert "access_token" in data, "Ответ должен содержать access_token"
         assert data["user"]["email"] == "admin@test.com", "Email в ответе должен совпадать"
 
     def test_login_wrong_password(self, client, seeded_db):
-        resp = client.post("/api/auth/login", json={"email": "admin@test.com", "password": "WrongPass!"})
+        resp = client.post("/api/v1/auth/login", json={"email": "admin@test.com", "password": "WrongPass!"})
         assert resp.status_code == 401, f"Неверный пароль → 401, получили {resp.status_code}"
 
     def test_login_nonexistent_user(self, client, seeded_db):
-        resp = client.post("/api/auth/login", json={"email": "noone@test.com", "password": "Anything1!"})
+        resp = client.post("/api/v1/auth/login", json={"email": "noone@test.com", "password": "Anything1!"})
         assert resp.status_code == 401, f"Несуществующий юзер → 401, получили {resp.status_code}"
 
     def test_login_inactive_user(self, client, seeded_db):
@@ -63,16 +63,16 @@ class TestLogin:
         inspector = seeded_db["inspector"]
         inspector.is_active = False
         db.commit()
-        resp = client.post("/api/auth/login", json={"email": "inspector@test.com", "password": "Inspector123!"})
+        resp = client.post("/api/v1/auth/login", json={"email": "inspector@test.com", "password": "Inspector123!"})
         assert resp.status_code == 403, f"Деактивированный юзер → 403, получили {resp.status_code}"
 
     def test_rate_limit_login(self, client, seeded_db):
         """6-й запрос на логин должен вернуть 429."""
         payload = {"email": "admin@test.com", "password": "WrongPass!"}
         for i in range(5):
-            resp = client.post("/api/auth/login", json=payload)
+            resp = client.post("/api/v1/auth/login", json=payload)
             assert resp.status_code == 401, f"Запрос {i+1}: ожидали 401, получили {resp.status_code}"
-        resp = client.post("/api/auth/login", json=payload)
+        resp = client.post("/api/v1/auth/login", json=payload)
         assert resp.status_code == 429, f"6-й запрос должен вернуть 429, получили {resp.status_code}"
         assert "Слишком много попыток" in resp.json()["detail"]
 
@@ -98,11 +98,11 @@ class TestPermissions:
         assert perms["anketa_view_all"] is False, "Инспектор: anketa_view_all=False"
 
     def test_require_permission_denied(self, client, inspector_headers, seeded_db):
-        resp = client.get("/api/admin/users", headers=inspector_headers)
+        resp = client.get("/api/v1/admin/users", headers=inspector_headers)
         assert resp.status_code == 403, f"Инспектор → /api/admin/users → 403, получили {resp.status_code}"
 
     def test_require_permission_allowed(self, client, admin_headers, seeded_db):
-        resp = client.get("/api/admin/users", headers=admin_headers)
+        resp = client.get("/api/v1/admin/users", headers=admin_headers)
         assert resp.status_code == 200, f"Админ → /api/admin/users → 200, получили {resp.status_code}"
 
 

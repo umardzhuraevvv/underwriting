@@ -13,7 +13,7 @@ logger = logging.getLogger("app")
 
 logger = logging.getLogger("app")
 
-router = APIRouter(prefix="/api/auth", tags=["auth"])
+router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 
 class TokenResponse(BaseModel):
