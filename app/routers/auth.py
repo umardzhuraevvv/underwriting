@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -5,13 +7,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db, User
 from app.auth import verify_password, create_access_token, get_current_user, get_user_permissions
 from app.limiter import limiter
+from app.schemas import LoginRequest
+
+logger = logging.getLogger("app")
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
 
 
 class TokenResponse(BaseModel):
@@ -36,13 +36,16 @@ class UserResponse(BaseModel):
 def login(request: Request, body: LoginRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == body.email).first()
     if not user or not verify_password(body.password, user.password_hash):
+        logger.warning("Неудачная попытка входа: %s", body.email)
         raise HTTPException(status_code=401, detail="Неверный логин или пароль")
     if not user.is_active:
+        logger.warning("Попытка входа в деактивированный аккаунт: %s", body.email)
         raise HTTPException(status_code=403, detail="Аккаунт деактивирован")
 
     perms = get_user_permissions(user, db)
     role_name = user.position.name if user.position else ("Администратор" if user.role == "admin" else "Инспектор")
 
+    logger.info("Успешный вход: %s", user.email)
     token = create_access_token({"sub": user.id, "role": user.role})
     return TokenResponse(
         access_token=token,

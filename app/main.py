@@ -7,6 +7,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.database import init_db
 from app.limiter import limiter
+from app.schemas import HealthResponse
 from app.routers import auth, admin, anketa
 from app.routers.anketa import public_router as anketa_public_router
 
@@ -41,7 +42,7 @@ app.include_router(anketa_public_router)
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 
-@app.get("/api/health")
+@app.get("/api/health", response_model=HealthResponse)
 def health():
     return {"status": "ok"}
 
