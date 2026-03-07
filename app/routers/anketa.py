@@ -27,6 +27,10 @@ from app.services.analytics_service import (
 from app.schemas import (
     ConclusionRequest, DeleteAnketaRequest,
     AnketaUpdate, EditRequestCreate, EditRequestOut,
+    AnketaCreateResponse, AnketaListItem, AnketaDetail,
+    NotificationOut, CountResponse, OkResponse,
+    OkIdResponse, DeleteResponse, ViewLogEntry,
+    DuplicateCheckResponse,
 )
 
 router = APIRouter(prefix="/api/anketas", tags=["anketas"])
@@ -36,7 +40,7 @@ public_router = APIRouter(prefix="/api/public", tags=["public"])
 # ---------- Endpoints ----------
 
 
-@router.get("/check-duplicate")
+@router.get("/check-duplicate", response_model=DuplicateCheckResponse)
 def check_duplicate(
     field: str = Query(...),
     value: str = Query(...),
@@ -48,7 +52,7 @@ def check_duplicate(
     return {"duplicates": check_duplicate_field(db, field, value, exclude_id)}
 
 
-@router.post("")
+@router.post("", response_model=AnketaCreateResponse)
 def create_anketa(
     client_type: str = Query("individual"),
     user: User = Depends(get_current_user),
@@ -104,7 +108,7 @@ def get_stats(
     return get_stats_data(db, user, period, date_from, date_to, client_type)
 
 
-@router.get("")
+@router.get("", response_model=list[AnketaListItem])
 def list_anketas(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -140,7 +144,7 @@ def list_anketas(
 
 # ---------- Notifications ----------
 
-@router.get("/notifications/list")
+@router.get("/notifications/list", response_model=list[NotificationOut])
 def list_notifications(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -163,7 +167,7 @@ def list_notifications(
     ]
 
 
-@router.get("/notifications/unread-count")
+@router.get("/notifications/unread-count", response_model=CountResponse)
 def unread_notification_count(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -174,7 +178,7 @@ def unread_notification_count(
     return {"count": count}
 
 
-@router.patch("/notifications/{notif_id}/read")
+@router.patch("/notifications/{notif_id}/read", response_model=OkResponse)
 def mark_notification_read(
     notif_id: int,
     user: User = Depends(get_current_user),
@@ -188,7 +192,7 @@ def mark_notification_read(
     return {"ok": True}
 
 
-@router.post("/notifications/read-all")
+@router.post("/notifications/read-all", response_model=OkResponse)
 def mark_all_notifications_read(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -221,7 +225,7 @@ def get_analytics(
     return get_analytics_data(db, user, period, date_from, date_to, client_type)
 
 
-@router.get("/edit-requests")
+@router.get("/edit-requests", response_model=list[EditRequestOut])
 def list_edit_requests(
     status: str | None = Query(None),
     user: User = Depends(get_current_user),
@@ -259,7 +263,7 @@ def list_edit_requests(
     return result
 
 
-@router.get("/{anketa_id}")
+@router.get("/{anketa_id}", response_model=AnketaDetail)
 def get_anketa(
     anketa_id: int,
     user: User = Depends(get_current_user),
@@ -302,7 +306,7 @@ def download_anketa_pdf(
     )
 
 
-@router.patch("/{anketa_id}")
+@router.patch("/{anketa_id}", response_model=AnketaDetail)
 def update_anketa(
     anketa_id: int,
     data: AnketaUpdate,
@@ -331,7 +335,7 @@ def update_anketa(
     return anketa_to_detail(anketa, db)
 
 
-@router.post("/{anketa_id}/save")
+@router.post("/{anketa_id}/save", response_model=AnketaDetail)
 def save_anketa(
     anketa_id: int,
     user: User = Depends(get_current_user),
@@ -385,7 +389,7 @@ def save_anketa(
     return anketa_to_detail(anketa, db)
 
 
-@router.post("/{anketa_id}/conclude")
+@router.post("/{anketa_id}/conclude", response_model=AnketaDetail)
 def conclude_anketa(
     anketa_id: int,
     data: ConclusionRequest,
@@ -429,7 +433,7 @@ def conclude_anketa(
     return anketa_to_detail(anketa, db)
 
 
-@router.delete("/{anketa_id}")
+@router.delete("/{anketa_id}", response_model=DeleteResponse)
 def delete_anketa(
     anketa_id: int,
     data: DeleteAnketaRequest,
@@ -473,7 +477,7 @@ def delete_anketa(
 
 # ---------- Edit Requests ----------
 
-@router.post("/{anketa_id}/edit-request")
+@router.post("/{anketa_id}/edit-request", response_model=OkIdResponse)
 def create_edit_request(
     anketa_id: int,
     data: EditRequestCreate,
@@ -533,7 +537,7 @@ def get_anketa_history(
     return query_history(db, anketa_id, field, user_filter, date_from, date_to, search)
 
 
-@router.get("/{anketa_id}/view-log")
+@router.get("/{anketa_id}/view-log", response_model=list[ViewLogEntry])
 def get_view_log(
     anketa_id: int,
     user: User = Depends(get_current_user),
@@ -588,7 +592,7 @@ def get_employee_stats(
 
 # ---------- Public API (no auth) ----------
 
-@public_router.get("/anketa/{token}")
+@public_router.get("/anketa/{token}", response_model=AnketaDetail)
 def get_public_anketa(token: str, db: Session = Depends(get_db)):
     """Return anketa data by share_token (no authentication required)."""
     anketa = db.query(Anketa).filter(

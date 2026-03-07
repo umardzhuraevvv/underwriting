@@ -1,6 +1,6 @@
 from typing import Annotated, Any
 
-from pydantic import BaseModel, BeforeValidator
+from pydantic import BaseModel, BeforeValidator, EmailStr, Field
 
 
 def _coerce_float(v: Any) -> float | None:
@@ -194,9 +194,91 @@ class AnketaDetail(BaseModel):
     # Soft delete
     deleted_at: str | None = None
     deletion_reason: str | None = None
+    # Public share
+    share_token: str | None = None
+    # Computed
+    has_pending_edit_request: bool = False
+    duplicates: list | None = None
 
     class Config:
         from_attributes = True
+
+
+# ---------- Response models ----------
+
+
+class AnketaCreateResponse(BaseModel):
+    id: int
+    status: str
+
+
+class AnketaListItem(BaseModel):
+    id: int
+    status: str
+    client_type: str = "individual"
+    full_name: str | None = None
+    company_name: str | None = None
+    car_brand: str | None = None
+    car_model: str | None = None
+    car_specs: str | None = None
+    car_year: int | None = None
+    purchase_price: float | None = None
+    down_payment_percent: float | None = None
+    dti: float | None = None
+    decision: str | None = None
+    created_by: int | None = None
+    created_at: str | None = None
+    creator_name: str | None = None
+
+
+class NotificationOut(BaseModel):
+    id: int
+    type: str
+    title: str
+    message: str | None = None
+    anketa_id: int | None = None
+    is_read: bool = False
+    created_at: str | None = None
+
+
+class CountResponse(BaseModel):
+    count: int
+
+
+class OkResponse(BaseModel):
+    ok: bool = True
+
+
+class OkIdResponse(BaseModel):
+    ok: bool = True
+    id: int
+
+
+class DeleteResponse(BaseModel):
+    ok: bool = True
+    id: int
+
+
+class HealthResponse(BaseModel):
+    status: str
+
+
+class ViewLogEntry(BaseModel):
+    id: int
+    user_name: str
+    viewed_at: str | None = None
+
+
+class DuplicateCheckResponse(BaseModel):
+    duplicates: list
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1)
+
+
+# ---------- Request/Update models ----------
 
 
 class AnketaUpdate(BaseModel):

@@ -7,15 +7,13 @@ from sqlalchemy.orm import Session
 from app.database import get_db, User
 from app.auth import verify_password, create_access_token, get_current_user, get_user_permissions
 from app.limiter import limiter
+from app.schemas import LoginRequest
+
+logger = logging.getLogger("app")
 
 logger = logging.getLogger("app")
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-
-class LoginRequest(BaseModel):
-    email: str
-    password: str
 
 
 class TokenResponse(BaseModel):

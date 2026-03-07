@@ -3,7 +3,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from sqlalchemy.orm import Session
 from typing import Optional
 from openpyxl import Workbook
@@ -571,6 +571,13 @@ class CreateWebhookRequest(BaseModel):
     secret: Optional[str] = None
     events: Optional[str] = "all"
 
+    @field_validator("url")
+    @classmethod
+    def url_must_be_http(cls, v: str) -> str:
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("URL должен начинаться с http:// или https://")
+        return v
+
 
 class UpdateWebhookRequest(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=200)
@@ -578,6 +585,13 @@ class UpdateWebhookRequest(BaseModel):
     secret: Optional[str] = None
     events: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @field_validator("url")
+    @classmethod
+    def url_must_be_http(cls, v: str | None) -> str | None:
+        if v is not None and not v.startswith(("http://", "https://")):
+            raise ValueError("URL должен начинаться с http:// или https://")
+        return v
 
 
 def webhook_to_out(w: WebhookConfig) -> WebhookOut:
