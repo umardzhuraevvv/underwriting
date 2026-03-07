@@ -1,0 +1,5 @@
+[phases.setup]
+nixPkgs = ["pango", "glib", "harfbuzz", "fontconfig", "freetype"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]
