@@ -4,7 +4,7 @@ from datetime import date
 from dateutil.relativedelta import relativedelta
 
 from app.database import Anketa
-from app.routers.anketa import calc_auto_verdict
+from app.services.calculation_service import calc_auto_verdict
 
 
 def _make_anketa(**kwargs) -> Anketa:

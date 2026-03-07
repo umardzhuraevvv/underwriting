@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from app.routers.anketa import (
+from app.services.calculation_service import (
     calc_annuity,
     calc_total_monthly_income,
     run_calculations,
