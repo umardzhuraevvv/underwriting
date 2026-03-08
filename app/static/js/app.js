@@ -4262,10 +4262,10 @@ async function loadAnalyticsCharts() {
   const hdrs = authHeaders();
   try {
     const [trendRes, dtiRes, inspRes, amtRes] = await Promise.all([
-      fetch('/api/anketas/analytics/monthly-trend', { headers: hdrs }),
-      fetch('/api/anketas/analytics/dti-distribution', { headers: hdrs }),
-      fetch('/api/anketas/analytics/inspector-stats', { headers: hdrs }),
-      fetch('/api/anketas/analytics/amount-trend', { headers: hdrs }),
+      fetch('/api/v1/anketas/analytics/monthly-trend', { headers: hdrs }),
+      fetch('/api/v1/anketas/analytics/dti-distribution', { headers: hdrs }),
+      fetch('/api/v1/anketas/analytics/inspector-stats', { headers: hdrs }),
+      fetch('/api/v1/anketas/analytics/amount-trend', { headers: hdrs }),
     ]);
 
     if (trendRes.ok) renderChartMonthlyTrend(await trendRes.json());
