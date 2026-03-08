@@ -15,26 +15,37 @@
 
 ```
 app/
-├── main.py              # Точка входа FastAPI, lifespan, подключение роутеров
+├── main.py              # Точка входа FastAPI, lifespan, middleware, роутеры
 ├── auth.py              # JWT (HS256, 8ч), bcrypt, пермишены (9 штук)
-├── database.py          # SQLAlchemy модели (10 таблиц), init_db(), seed
+├── database.py          # SQLAlchemy модели (10+ таблиц), init_db(), seed
+├── schemas.py           # Pydantic-схемы запросов/ответов
+├── limiter.py           # Rate limiting (slowapi)
+├── logging_config.py    # Настройка логирования
 ├── credit_report_parser.py  # Парсер InfoScore HTML (UZ/RU)
 ├── email_service.py     # SMTP Gmail (отправка паролей)
 ├── telegram_service.py  # Telegram Bot API (уведомления)
 ├── routers/
-│   ├── auth.py          # POST /login, GET /me
-│   ├── anketa.py        # CRUD анкет, расчёты, вердикт, аналитика (~1860 строк)
-│   └── admin.py         # Управление юзерами, ролями, правилами (~500 строк)
+│   ├── auth.py          # /api/v1/auth — логин, профиль
+│   ├── anketa.py        # /api/v1/anketas — CRUD, вердикт, аналитика (~590 строк)
+│   └── admin.py         # /api/v1/admin — юзеры, роли, правила (~500 строк)
+├── services/
+│   ├── calculation_service.py  # Аннуитет, DTI, авто-вердикт
+│   ├── anketa_service.py       # CRUD хелперы, уведомления, дубликаты
+│   ├── analytics_service.py    # Статистика, аналитика, графики
+│   ├── pdf_service.py          # WeasyPrint генерация PDF
+│   └── webhook_service.py      # HMAC вебхуки
 ├── static/
-│   ├── js/app.js        # Главный SPA файл (~4720 строк)
+│   ├── js/app.js        # Главный SPA файл (~4870 строк)
 │   ├── css/style.css    # Стили + dark mode (~2542 строк)
 │   └── pages/           # HTML страницы (index, login, public-anketa)
+alembic/                 # Миграции БД (Alembic)
 tests/
-├── conftest.py          # Фикстуры: SQLite in-memory, TestClient, юзеры, правила
-├── test_calculations.py # Тесты расчётов (20 тестов)
-├── test_verdict.py      # Тесты авто-вердикта (18 тестов)
-├── test_auth.py         # Тесты аутентификации (14 тестов)
-└── test_api.py          # Тесты API эндпоинтов (10 тестов)
+├── conftest.py          # Фикстуры: SQLite in-memory, TestClient
+├── test_calculations.py # Тесты расчётов
+├── test_verdict.py      # Тесты авто-вердикта
+├── test_auth.py         # Тесты аутентификации
+├── test_api.py          # Тесты API эндпоинтов
+└── ...                  # + тесты rate-limiting, webhooks, PDF, logging, versioning
 ```
 
 ## Ключевые модели БД
@@ -66,16 +77,45 @@ DTI = (monthly_payment + monthly_obligations_payment) / total_monthly_income × 
 3. Финальное решение = worst(DTI, overdue)
 4. Рекомендуемый ПВ = min_pv + pv_additions
 
-## Ветки
-- **НИКОГДА** не коммитить напрямую в main
-- Каждая задача = новая ветка `feature/название`
-- После завершения создать PR в dev
-- Формат веток: `feature/что-делаем` (kebab-case)
+## Git-воркфлоу
+
+### Ветки
+- **main** — продакшен. Автодеплой на Railway. НИКОГДА не коммитить напрямую.
+- **dev** — ветка разработки. Все фичи мержатся сюда первыми.
+- **feature/xxx** — ветки задач, создаются ОТ `dev`.
+
+### Правила для агентов (ОБЯЗАТЕЛЬНО)
+1. **Перед началом работы** — убедиться что находишься на `dev`:
+   ```bash
+   git checkout dev && git pull origin dev
+   ```
+2. **Создать ветку от dev**:
+   ```bash
+   git checkout -b feature/название-задачи dev
+   ```
+3. **Работать в своей ветке**, коммитить туда.
+4. **После завершения** — замержить в `dev`:
+   ```bash
+   git checkout dev && git merge feature/название-задачи --no-edit && git push origin dev
+   ```
+5. **НИКОГДА не мержить в main** — это делает только тимлид вручную после проверки на dev.
+6. **НИКОГДА не пушить в main** напрямую.
+
+### Формат веток
+- `feature/что-делаем` (kebab-case)
+- Примеры: `feature/rate-limiting`, `feature/pdf-export`, `feature/fix-404`
+
+### Деплой в прод (только вручную)
+Когда всё проверено на dev:
+```bash
+git checkout main && git merge dev --no-edit && git push origin main
+```
+Railway автоматически задеплоит из main.
 
 ## Структура кода (куда что писать)
 - Эндпоинты: `app/routers/`
 - Модели БД: `app/database.py`
-- Бизнес-логика: `app/routers/anketa.py` (TODO: вынести в `app/services/`)
+- Бизнес-логика: `app/services/` (calculation, anketa, analytics, pdf, webhook)
 - Тесты: `tests/`
 - ТЗ и документация: `docs/tasks/`
 
@@ -95,7 +135,9 @@ DTI = (monthly_payment + monthly_obligations_payment) / total_monthly_income × 
 ## Известные нюансы и грабли
 
 ### Миграции БД
-- Alembic НЕ настроен (пока). Миграции через try/except ALTER TABLE в `database.py init_db()`
+- Alembic настроен, но НЕ используется в startCommand (зависал на Railway)
+- Новые миграции: `alembic revision --autogenerate -m "описание"`
+- Миграции также дублируются через try/except ALTER TABLE в `database.py init_db()`
 - При добавлении новой колонки в Anketa — добавить ALTER TABLE в init_db()
 - PostgreSQL и SQLite имеют разный синтаксис ALTER — учитывать оба
 
@@ -117,9 +159,18 @@ DTI = (monthly_payment + monthly_obligations_payment) / total_monthly_income × 
 - Soft delete: `deleted_at` + `deleted_by` + `deletion_reason`
 
 ### Деплой
-- Railway автодеплой из main: push → build → deploy
-- Health check: `/api/health`
+- Railway автодеплой из main: push → build (nixpacks) → deploy
+- Конфиг: `railway.toml` (nixpacks builder) + `nixpacks.toml` (apt-зависимости для WeasyPrint)
+- Health check: `/api/health` (без версии, НЕ /api/v1/)
 - Рестарт при падении (max 3 retries)
+- **startCommand** обёрнут в `sh -c` для раскрытия `$PORT`
+- Alembic НЕ запускается в startCommand — миграции через init_db()
+
+### API версионирование
+- Все роуты: `/api/v1/...` (anketas, auth, admin, public)
+- Healthcheck: `/api/health` (без версии)
+- При добавлении нового эндпоинта — обязательно использовать `/api/v1/` префикс
+- При добавлении fetch() в app.js — обязательно `/api/v1/...`
 
 ## История задач
 Все ТЗ хранятся в `docs/tasks/` с нумерацией:
