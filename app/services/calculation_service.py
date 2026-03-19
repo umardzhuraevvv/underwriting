@@ -299,8 +299,42 @@ def calc_auto_verdict(anketa: Anketa, rules: dict) -> dict:
             overdue_decision = rules.get("overdue_30_result", "approved")
             reasons.append(f"Просрочка до 30 дней — {overdue_decision}")
 
-    # --- Final decision = worst of DTI and overdue ---
+    # --- Credit report: systematic overdue ---
+    systematic_decision = "approved"
+    if getattr(anketa, 'systematic_overdue', False):
+        systematic_decision = rules.get("systematic_overdue_result", "rejected")
+        reasons.append(f"Систематическая просрочка (3+ эпизодов 31+ дней за 12 мес) — {systematic_decision}")
+
+    # --- Credit report: worst active classification ---
+    classification_decision = "approved"
+    worst_class = getattr(anketa, 'worst_active_classification', None)
+    if worst_class:
+        BAD_CLASSES = {"Сомнительный", "Shubhali", "Безнадежный", "Umidsiz", "Qoniqarsiz"}
+        WARN_CLASSES = {"Субстандартный", "Substandart"}
+        if worst_class in BAD_CLASSES:
+            classification_decision = rules.get("bad_classification_result", "rejected")
+            add = rules.get("bad_classification_pv_add", 10)
+            pv_add += add
+            reasons.append(f"Класс качества активов: {worst_class} — {classification_decision}, ПВ +{add}%")
+        elif worst_class in WARN_CLASSES:
+            classification_decision = rules.get("warn_classification_result", "review")
+            add = rules.get("warn_classification_pv_add", 5)
+            pv_add += add
+            reasons.append(f"Класс качества активов: {worst_class} — {classification_decision}, ПВ +{add}%")
+
+    # --- Credit report: lombard ---
+    lombard_decision = "approved"
+    if getattr(anketa, 'has_lombard', False):
+        lombard_decision = rules.get("lombard_result", "review")
+        add = rules.get("lombard_pv_add", 5)
+        pv_add += add
+        reasons.append(f"Ломбардные обязательства — {lombard_decision}, ПВ +{add}%")
+
+    # --- Final decision = worst of all checks ---
     final = _worst_decision(dti_decision, overdue_decision)
+    final = _worst_decision(final, systematic_decision)
+    final = _worst_decision(final, classification_decision)
+    final = _worst_decision(final, lombard_decision)
 
     # --- Recommended PV ---
     min_pv = rules.get("min_pv_percent", 5)

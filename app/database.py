@@ -139,6 +139,11 @@ class Anketa(Base):
     overdue_check_result = Column(String(100)) # auto-calc
     overdue_reason = Column(Text)
 
+    # Credit report parser v2 fields
+    systematic_overdue = Column(Boolean, default=False)
+    worst_active_classification = Column(String(50))
+    has_lombard = Column(Boolean, default=False)
+
     # ===== LEGAL ENTITY FIELDS =====
     # Company info
     company_name = Column(String(300))
@@ -337,6 +342,19 @@ def init_db():
         except Exception:
             conn.rollback()
 
+    # Add credit report parser v2 columns
+    with engine.connect() as conn:
+        for col_name, col_def in [
+            ("systematic_overdue", "BOOLEAN DEFAULT FALSE"),
+            ("worst_active_classification", "VARCHAR(50)"),
+            ("has_lombard", "BOOLEAN DEFAULT FALSE"),
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE anketas ADD COLUMN {col_name} {col_def}"))
+                conn.commit()
+            except Exception:
+                conn.rollback()
+
     db = SessionLocal()
     try:
         # Seed system roles
@@ -437,9 +455,33 @@ def init_db():
                 {"category": "overdue", "rule_key": "overdue_90plus_gt_result", "value": "review", "label": "90+, более порога: решение", "value_type": "string"},
                 {"category": "overdue", "rule_key": "overdue_90plus_lte_result", "value": "rejected", "label": "90+, до порога: решение", "value_type": "string"},
                 {"category": "overdue", "rule_key": "overdue_90plus_threshold", "value": "24", "label": "90+: порог (мес)", "value_type": "int"},
+                # Credit report
+                {"category": "credit_report", "rule_key": "systematic_overdue_result", "value": "rejected", "label": "Систематическая просрочка: решение", "value_type": "string"},
+                {"category": "credit_report", "rule_key": "bad_classification_result", "value": "rejected", "label": "Плохой класс качества: решение", "value_type": "string"},
+                {"category": "credit_report", "rule_key": "bad_classification_pv_add", "value": "10", "label": "Плохой класс качества: ПВ +%", "value_type": "float"},
+                {"category": "credit_report", "rule_key": "warn_classification_result", "value": "review", "label": "Субстандартный класс: решение", "value_type": "string"},
+                {"category": "credit_report", "rule_key": "warn_classification_pv_add", "value": "5", "label": "Субстандартный класс: ПВ +%", "value_type": "float"},
+                {"category": "credit_report", "rule_key": "lombard_result", "value": "review", "label": "Ломбард: решение", "value_type": "string"},
+                {"category": "credit_report", "rule_key": "lombard_pv_add", "value": "5", "label": "Ломбард: ПВ +%", "value_type": "float"},
             ]
             for r in default_rules:
                 db.add(UnderwritingRule(**r))
             db.commit()
+
+        # Seed missing credit_report rules (for existing installations)
+        cr_rules = [
+            {"category": "credit_report", "rule_key": "systematic_overdue_result", "value": "rejected", "label": "Систематическая просрочка: решение", "value_type": "string"},
+            {"category": "credit_report", "rule_key": "bad_classification_result", "value": "rejected", "label": "Плохой класс качества: решение", "value_type": "string"},
+            {"category": "credit_report", "rule_key": "bad_classification_pv_add", "value": "10", "label": "Плохой класс качества: ПВ +%", "value_type": "float"},
+            {"category": "credit_report", "rule_key": "warn_classification_result", "value": "review", "label": "Субстандартный класс: решение", "value_type": "string"},
+            {"category": "credit_report", "rule_key": "warn_classification_pv_add", "value": "5", "label": "Субстандартный класс: ПВ +%", "value_type": "float"},
+            {"category": "credit_report", "rule_key": "lombard_result", "value": "review", "label": "Ломбард: решение", "value_type": "string"},
+            {"category": "credit_report", "rule_key": "lombard_pv_add", "value": "5", "label": "Ломбард: ПВ +%", "value_type": "float"},
+        ]
+        for r in cr_rules:
+            exists = db.query(UnderwritingRule).filter(UnderwritingRule.rule_key == r["rule_key"]).first()
+            if not exists:
+                db.add(UnderwritingRule(**r))
+        db.commit()
     finally:
         db.close()

@@ -11,7 +11,7 @@ from app.database import init_db
 from app.limiter import limiter
 from app.logging_config import setup_logging
 from app.schemas import HealthResponse
-from app.routers import auth, admin, anketa
+from app.routers import auth, admin, anketa, credit_report
 from app.routers.anketa import public_router as anketa_public_router
 
 logger = logging.getLogger("app")
@@ -68,6 +68,7 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(anketa.router)
 app.include_router(anketa_public_router)
+app.include_router(credit_report.router)
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 

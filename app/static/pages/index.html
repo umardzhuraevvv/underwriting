@@ -562,6 +562,23 @@
 
         <!-- TAB 4: Credit history (individual) -->
         <div class="tab-content" id="tab-credit">
+          <div class="katm-upload-block">
+            <div class="section-divider">Загрузка КАТМ (кредитная история)</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="form-label">HTML-файл кредитной истории (InfoScore / CIAC)</label>
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                  <input type="file" id="katmFileInput" accept=".html,.htm" style="display:none">
+                  <button type="button" class="btn btn-outline" onclick="document.getElementById('katmFileInput').click()">Загрузить КАТМ</button>
+                  <span id="katmFileName" class="form-hint"></span>
+                  <span id="katmStatus" class="form-hint"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="f-systematic_overdue" value="">
+          <input type="hidden" id="f-worst_active_classification" value="">
+          <input type="hidden" id="f-has_lombard" value="">
           <div class="section-divider">Текущие обязательства</div>
           <div class="form-grid">
             <div class="form-group">
@@ -802,6 +819,23 @@
 
         <!-- LEGAL ENTITY TAB 4: Credit history -->
         <div class="tab-content" id="tab-le-credit">
+          <div class="katm-upload-block">
+            <div class="section-divider">Загрузка КАТМ (кредитная история)</div>
+            <div class="form-grid">
+              <div class="form-group full">
+                <label class="form-label">HTML-файл кредитной истории (InfoScore / CIAC)</label>
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                  <input type="file" id="leKatmFileInput" accept=".html,.htm" style="display:none">
+                  <button type="button" class="btn btn-outline" onclick="document.getElementById('leKatmFileInput').click()">Загрузить КАТМ</button>
+                  <span id="leKatmFileName" class="form-hint"></span>
+                  <span id="leKatmStatus" class="form-hint"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <input type="hidden" id="f-le-systematic_overdue" value="">
+          <input type="hidden" id="f-le-worst_active_classification" value="">
+          <input type="hidden" id="f-le-has_lombard" value="">
           <div class="section-divider">Кредитная история компании</div>
           <div class="form-grid">
             <div class="form-group">

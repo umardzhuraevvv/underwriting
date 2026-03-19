@@ -161,3 +161,73 @@ class TestVerdictLegalEntity:
         result = calc_auto_verdict(a, default_rules)
         assert result["auto_decision"] == "review", \
             f"Юрлицо: worst(approved, review, review) → review, получили {result['auto_decision']}"
+
+
+# ===== Тесты кредитной истории (парсер v2) =====
+
+class TestVerdictCreditReport:
+
+    def test_systematic_overdue_rejects(self, default_rules):
+        """systematic_overdue=True → rejected."""
+        a = _make_anketa(dti=40, systematic_overdue=True)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+        reasons = " ".join(result["auto_decision_reasons"])
+        assert "Систематическая просрочка" in reasons
+
+    def test_systematic_overdue_false_no_effect(self, default_rules):
+        """systematic_overdue=False → не влияет."""
+        a = _make_anketa(dti=40, systematic_overdue=False)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_bad_classification_rejects(self, default_rules):
+        """worst_active_classification='Безнадежный' → rejected + ПВ +10."""
+        a = _make_anketa(dti=40, worst_active_classification="Безнадежный")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+        assert result["recommended_pv"] >= 15  # min_pv(5) + 10
+
+    def test_bad_classification_uzbek(self, default_rules):
+        """worst_active_classification='Umidsiz' (узб.) → rejected."""
+        a = _make_anketa(dti=40, worst_active_classification="Umidsiz")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+
+    def test_warn_classification_review(self, default_rules):
+        """worst_active_classification='Субстандартный' → review + ПВ +5."""
+        a = _make_anketa(dti=40, worst_active_classification="Субстандартный")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "review"
+        assert result["recommended_pv"] >= 10  # min_pv(5) + 5
+
+    def test_good_classification_no_effect(self, default_rules):
+        """worst_active_classification='Стандартный' → не влияет."""
+        a = _make_anketa(dti=40, worst_active_classification="Стандартный")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_lombard_review(self, default_rules):
+        """has_lombard=True → review + ПВ +5."""
+        a = _make_anketa(dti=40, has_lombard=True)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "review"
+        assert result["recommended_pv"] >= 10
+
+    def test_lombard_false_no_effect(self, default_rules):
+        """has_lombard=False → не влияет."""
+        a = _make_anketa(dti=40, has_lombard=False)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_combined_multiple_bad_signals(self, default_rules):
+        """DTI review + systematic_overdue + lombard → rejected (worst wins)."""
+        a = _make_anketa(dti=55, systematic_overdue=True, has_lombard=True)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+
+    def test_combined_pv_accumulates(self, default_rules):
+        """Плохой класс (+10) + ломбард (+5) → ПВ = 5 + 10 + 5 = 20."""
+        a = _make_anketa(dti=40, worst_active_classification="Безнадежный", has_lombard=True, down_payment_percent=10)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["recommended_pv"] == 20.0

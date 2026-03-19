@@ -117,6 +117,14 @@ def _seed_rules(db_session):
         {"category": "overdue", "rule_key": "overdue_90plus_gt_result", "value": "review", "label": "90+, > порога: решение", "value_type": "string"},
         {"category": "overdue", "rule_key": "overdue_90plus_lte_result", "value": "rejected", "label": "90+, ≤ порога: решение", "value_type": "string"},
         {"category": "overdue", "rule_key": "overdue_90plus_threshold", "value": "24", "label": "90+: порог (мес)", "value_type": "int"},
+        # Credit report
+        {"category": "credit_report", "rule_key": "systematic_overdue_result", "value": "rejected", "label": "Систематическая просрочка: решение", "value_type": "string"},
+        {"category": "credit_report", "rule_key": "bad_classification_result", "value": "rejected", "label": "Плохой класс качества: решение", "value_type": "string"},
+        {"category": "credit_report", "rule_key": "bad_classification_pv_add", "value": "10", "label": "Плохой класс качества: ПВ +%", "value_type": "float"},
+        {"category": "credit_report", "rule_key": "warn_classification_result", "value": "review", "label": "Субстандартный класс: решение", "value_type": "string"},
+        {"category": "credit_report", "rule_key": "warn_classification_pv_add", "value": "5", "label": "Субстандартный класс: ПВ +%", "value_type": "float"},
+        {"category": "credit_report", "rule_key": "lombard_result", "value": "review", "label": "Ломбард: решение", "value_type": "string"},
+        {"category": "credit_report", "rule_key": "lombard_pv_add", "value": "5", "label": "Ломбард: ПВ +%", "value_type": "float"},
     ]
     for r in default_rules:
         db_session.add(UnderwritingRule(**r))
@@ -200,6 +208,14 @@ def default_rules():
         "overdue_90plus_gt_result": "review",
         "overdue_90plus_lte_result": "rejected",
         "overdue_90plus_threshold": 24,
+        # Credit report
+        "systematic_overdue_result": "rejected",
+        "bad_classification_result": "rejected",
+        "bad_classification_pv_add": 10.0,
+        "warn_classification_result": "review",
+        "warn_classification_pv_add": 5.0,
+        "lombard_result": "review",
+        "lombard_pv_add": 5.0,
     }
 
 

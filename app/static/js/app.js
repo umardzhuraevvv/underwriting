@@ -554,6 +554,7 @@ function initApp() {
 
   // Setup anketa auto-calculations
   setupAnketaCalcListeners();
+  setupKatmListeners();
 
   // Load verdict rules for client-side preview
   loadVerdictRules();
@@ -937,6 +938,7 @@ const anketaFields = [
   'max_continuous_overdue_percent_days', 'max_overdue_percent_amount',
   'overdue_category', 'last_overdue_date', 'overdue_reason',
   'risk_grade', 'no_scoring_response',
+  'systematic_overdue', 'worst_active_classification', 'has_lombard',
 ];
 
 const leFields = [
@@ -1156,6 +1158,8 @@ function fillAnketaForm(data) {
 
     if (field === 'consent_personal_data' || field === 'no_scoring_response') {
       el.checked = !!data[field];
+    } else if (field === 'systematic_overdue' || field === 'has_lombard') {
+      el.value = data[field] === true ? 'true' : data[field] === false ? 'false' : '';
     } else if (MONEY_FIELDS.includes(field) && data[field] != null && typeof data[field] === 'number') {
       el.value = formatNumber(data[field]);
     } else if (field === 'guarantor_passport' && data[field]) {
@@ -1222,6 +1226,13 @@ function fillAnketaForm(data) {
     if (leRiskGrade) leRiskGrade.value = data.risk_grade || '';
     const leNoScoring = document.getElementById('f-le-no_scoring_response');
     if (leNoScoring) leNoScoring.checked = !!data.no_scoring_response;
+    // LE credit report hidden fields
+    const leSysOverdue = document.getElementById('f-le-systematic_overdue');
+    if (leSysOverdue) leSysOverdue.value = data.systematic_overdue === true ? 'true' : data.systematic_overdue === false ? 'false' : '';
+    const leWorstClass = document.getElementById('f-le-worst_active_classification');
+    if (leWorstClass) leWorstClass.value = data.worst_active_classification || '';
+    const leHasLombard = document.getElementById('f-le-has_lombard');
+    if (leHasLombard) leHasLombard.value = data.has_lombard === true ? 'true' : data.has_lombard === false ? 'false' : '';
   } else {
     _currentClientType = 'individual';
     selectClientType('individual');
@@ -1308,6 +1319,8 @@ function collectAnketaData() {
 
     if (field === 'consent_personal_data' || field === 'no_scoring_response') {
       data[field] = el.checked;
+    } else if (field === 'systematic_overdue' || field === 'has_lombard') {
+      data[field] = el.value === 'true' ? true : el.value === 'false' ? false : null;
     } else if (intFields.has(field)) {
       const v = el.value.trim();
       data[field] = v ? parseInt(v) || null : null;
@@ -1357,6 +1370,13 @@ function collectAnketaData() {
     if (leRiskGrade) data.risk_grade = leRiskGrade.value || null;
     const leNoScoring = document.getElementById('f-le-no_scoring_response');
     if (leNoScoring) data.no_scoring_response = leNoScoring.checked;
+    // LE credit report hidden fields
+    const leSysOverdue = document.getElementById('f-le-systematic_overdue');
+    if (leSysOverdue && leSysOverdue.value) data.systematic_overdue = leSysOverdue.value === 'true';
+    const leWorstClass = document.getElementById('f-le-worst_active_classification');
+    if (leWorstClass && leWorstClass.value) data.worst_active_classification = leWorstClass.value;
+    const leHasLombard = document.getElementById('f-le-has_lombard');
+    if (leHasLombard && leHasLombard.value) data.has_lombard = leHasLombard.value === 'true';
   } else {
     data.client_type = 'individual';
   }
@@ -2205,6 +2225,117 @@ function setupAnketaCalcListeners() {
       el.addEventListener('change', handler);
     }
   });
+}
+
+// ---------- KATM UPLOAD ----------
+
+async function uploadKatm(fileInputId, isLegalEntity) {
+  const fileInput = document.getElementById(fileInputId);
+  if (!fileInput || !fileInput.files.length) return;
+
+  const file = fileInput.files[0];
+  const statusId = isLegalEntity ? 'leKatmStatus' : 'katmStatus';
+  const fileNameId = isLegalEntity ? 'leKatmFileName' : 'katmFileName';
+  const statusEl = document.getElementById(statusId);
+  const fileNameEl = document.getElementById(fileNameId);
+
+  if (fileNameEl) fileNameEl.textContent = file.name;
+  if (statusEl) { statusEl.textContent = 'Загрузка...'; statusEl.style.color = ''; }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/api/v1/credit-report/parse', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Ошибка сервера' }));
+      throw new Error(err.detail || 'Ошибка парсинга');
+    }
+
+    const data = await res.json();
+    applyKatmData(data, isLegalEntity);
+
+    if (statusEl) {
+      statusEl.textContent = 'Данные загружены';
+      statusEl.style.color = 'var(--success)';
+    }
+    showToast('Кредитная история загружена');
+    runClientCalc();
+  } catch (err) {
+    if (statusEl) {
+      statusEl.textContent = err.message;
+      statusEl.style.color = 'var(--danger)';
+    }
+    showToast(err.message, 'error');
+  }
+  // Reset file input so the same file can be re-uploaded
+  fileInput.value = '';
+}
+
+function applyKatmData(data, isLegalEntity) {
+  function setField(id, value) {
+    const el = document.getElementById(id);
+    if (!el || value === null || value === undefined) return;
+    if (MONEY_FIELDS.includes(id.replace('f-', '')) && typeof value === 'number') {
+      el.value = formatNumber(value);
+    } else {
+      el.value = value;
+    }
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  if (isLegalEntity) {
+    // Company credit fields
+    setField('f-company_has_obligations', data.has_current_obligations);
+    setField('f-company_obligations_count', data.obligations_count);
+    setField('f-company_obligations_amount', data.total_obligations_amount);
+    setField('f-company_monthly_payment', data.monthly_obligations_payment);
+    setField('f-company_overdue_category', data.overdue_category);
+    if (data.last_overdue_date) setField('f-company_last_overdue_date', data.last_overdue_date);
+    // Risk grade
+    if (data.ki_score) setField('f-le-risk_grade', data.ki_score);
+    // Hidden fields for verdict
+    const sysOverdue = document.getElementById('f-le-systematic_overdue');
+    if (sysOverdue) sysOverdue.value = data.systematic_overdue ? 'true' : 'false';
+    const worstClass = document.getElementById('f-le-worst_active_classification');
+    if (worstClass) worstClass.value = data.worst_active_classification || '';
+    const hasLombard = document.getElementById('f-le-has_lombard');
+    if (hasLombard) hasLombard.value = data.has_lombard ? 'true' : 'false';
+  } else {
+    // Individual fields
+    setField('f-has_current_obligations', data.has_current_obligations);
+    setField('f-obligations_count', data.obligations_count);
+    setField('f-total_obligations_amount', data.total_obligations_amount);
+    setField('f-monthly_obligations_payment', data.monthly_obligations_payment);
+    setField('f-closed_obligations_count', data.closed_obligations_count);
+    setField('f-max_overdue_principal_days', data.max_overdue_principal_days);
+    setField('f-max_overdue_principal_amount', data.max_overdue_principal_amount);
+    setField('f-max_continuous_overdue_percent_days', data.max_continuous_overdue_percent_days);
+    setField('f-max_overdue_percent_amount', data.max_overdue_percent_amount);
+    setField('f-overdue_category', data.overdue_category);
+    if (data.last_overdue_date) setField('f-last_overdue_date', data.last_overdue_date);
+    // Risk grade
+    if (data.ki_score) setField('f-risk_grade', data.ki_score);
+    // Hidden fields for verdict
+    const sysOverdue = document.getElementById('f-systematic_overdue');
+    if (sysOverdue) sysOverdue.value = data.systematic_overdue ? 'true' : 'false';
+    const worstClass = document.getElementById('f-worst_active_classification');
+    if (worstClass) worstClass.value = data.worst_active_classification || '';
+    const hasLombard = document.getElementById('f-has_lombard');
+    if (hasLombard) hasLombard.value = data.has_lombard ? 'true' : 'false';
+  }
+}
+
+function setupKatmListeners() {
+  const katmInput = document.getElementById('katmFileInput');
+  if (katmInput) katmInput.addEventListener('change', () => uploadKatm('katmFileInput', false));
+  const leKatmInput = document.getElementById('leKatmFileInput');
+  if (leKatmInput) leKatmInput.addEventListener('change', () => uploadKatm('leKatmFileInput', true));
 }
 
 // ---------- ANKETA: FORMAT ----------
