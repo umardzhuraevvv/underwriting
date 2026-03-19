@@ -2303,8 +2303,7 @@ function applyKatmData(data, isLegalEntity) {
     setField('f-company_monthly_payment', data.monthly_obligations_payment);
     setField('f-company_overdue_category', data.overdue_category);
     if (data.last_overdue_date) setField('f-company_last_overdue_date', data.last_overdue_date);
-    // Risk grade
-    if (data.ki_score) setField('f-le-risk_grade', data.ki_score);
+    // Risk grade — НЕ заполняем из КИ, только ручной ввод
     // Hidden fields for verdict
     const sysOverdue = document.getElementById('f-le-systematic_overdue');
     if (sysOverdue) sysOverdue.value = data.systematic_overdue ? 'true' : 'false';
@@ -2327,8 +2326,7 @@ function applyKatmData(data, isLegalEntity) {
     setField('f-max_overdue_percent_amount', data.max_overdue_percent_amount);
     setField('f-overdue_category', data.overdue_category);
     if (data.last_overdue_date) setField('f-last_overdue_date', data.last_overdue_date);
-    // Risk grade
-    if (data.ki_score) setField('f-risk_grade', data.ki_score);
+    // Risk grade — НЕ заполняем из КИ, только ручной ввод
     // Hidden fields for verdict
     const sysOverdue = document.getElementById('f-systematic_overdue');
     if (sysOverdue) sysOverdue.value = data.systematic_overdue ? 'true' : 'false';
@@ -3441,46 +3439,59 @@ function setupRiskGradeListeners() {
   if (pvInput) pvInput.addEventListener('input', checkRiskGradePV);
 }
 
-function checkRiskGradePV() {
-  // Determine which fields to use based on client type
-  let gradeEl, noScoringEl, warningEl;
-  if (_currentClientType === 'legal_entity') {
-    gradeEl = document.getElementById('f-le-risk_grade');
-    noScoringEl = document.getElementById('f-le-no_scoring_response');
-    warningEl = document.getElementById('leRiskGradeWarning');
-  } else {
-    gradeEl = document.getElementById('f-risk_grade');
-    noScoringEl = document.getElementById('f-no_scoring_response');
-    warningEl = document.getElementById('riskGradeWarning');
-  }
+function calcRecommendedPV() {
+  // Calculate full recommended PV: base (from risk grade or default 5%) + additions
+  const isLE = _currentClientType === 'legal_entity';
+  const prefix = isLE ? 'f-le-' : 'f-';
 
-  if (!gradeEl || !warningEl) return null;
-
-  const grade = (gradeEl.value || '').trim();
+  // Base PV: from risk grade or default 5%
+  let basePV = 5;
+  const gradeEl = document.getElementById(prefix + 'risk_grade') || document.getElementById('f-risk_grade');
+  const noScoringEl = document.getElementById(prefix + 'no_scoring_response') || document.getElementById('f-no_scoring_response');
+  const grade = (gradeEl?.value || '').trim();
   const noScoring = noScoringEl ? noScoringEl.checked : false;
 
-  if (!grade || noScoring) {
-    warningEl.style.display = 'none';
-    return null;
+  if (grade && !noScoring) {
+    const rule = _clientRiskRules.find(r => r.category.toLowerCase() === grade.toLowerCase());
+    if (rule && rule.min_pv > basePV) basePV = rule.min_pv;
   }
 
-  // Find matching rule
-  const rule = _clientRiskRules.find(r => r.category.toLowerCase() === grade.toLowerCase());
-  if (!rule) {
-    warningEl.style.display = 'none';
-    return null;
-  }
+  // PV additions from credit report signals
+  let pvAdd = 0;
+  const worstClassEl = document.getElementById(prefix + 'worst_active_classification') || document.getElementById('f-worst_active_classification');
+  const worstClass = (worstClassEl?.value || '').trim();
+  const BAD_CLASSES = ['Сомнительный', 'Shubhali', 'Безнадежный', 'Umidsiz', 'Qoniqarsiz'];
+  const WARN_CLASSES = ['Субстандартный', 'Substandart'];
+  if (BAD_CLASSES.includes(worstClass)) pvAdd += 10;
+  else if (WARN_CLASSES.includes(worstClass)) pvAdd += 5;
 
+  const lombardEl = document.getElementById(prefix + 'has_lombard') || document.getElementById('f-has_lombard');
+  if (lombardEl?.value === 'true') pvAdd += 5;
+
+  return basePV + pvAdd;
+}
+
+function checkRiskGradePV() {
+  const isLE = _currentClientType === 'legal_entity';
+  const warningEl = document.getElementById(isLE ? 'leRiskGradeWarning' : 'riskGradeWarning');
+  if (!warningEl) return null;
+
+  const recommendedPV = calcRecommendedPV();
   const pvPercent = parseFloat(document.getElementById('f-down_payment_percent')?.value) || 0;
 
-  if (pvPercent < rule.min_pv) {
+  if (recommendedPV <= 5 && pvPercent >= 5) {
+    warningEl.style.display = 'none';
+    return null;
+  }
+
+  if (pvPercent < recommendedPV) {
     warningEl.className = 'field-error-msg';
-    warningEl.textContent = `ПВ (${pvPercent}%) ниже минимума для грейда ${rule.category} (${rule.min_pv}%)`;
+    warningEl.textContent = `ПВ (${pvPercent}%) ниже рекомендуемого минимума (${recommendedPV}%)`;
     warningEl.style.display = 'flex';
-    return `ПВ (${pvPercent}%) ниже минимума для грейда ${rule.category} (${rule.min_pv}%)`;
+    return `Первоначальный взнос (${pvPercent}%) ниже рекомендуемого (${recommendedPV}%). Увеличьте ПВ.`;
   } else {
     warningEl.className = 'field-warning';
-    warningEl.textContent = `Мин. ПВ для грейда ${rule.category}: ${rule.min_pv}%`;
+    warningEl.textContent = `Рекомендуемый мин. ПВ: ${recommendedPV}%`;
     warningEl.style.display = 'flex';
     return null;
   }
@@ -3489,14 +3500,9 @@ function checkRiskGradePV() {
 // ---------- FINAL PV HELPERS ----------
 
 function getFinalPvHint(data) {
-  if (!data.risk_grade || data.no_scoring_response) {
-    return 'Ограничений по ПВ нет';
-  }
-  const rule = _clientRiskRules.find(r => r.category.toLowerCase() === data.risk_grade.toLowerCase());
-  if (rule) {
-    return 'Мин. ПВ по грейду ' + rule.category + ': ' + rule.min_pv + '%';
-  }
-  return 'Грейд не найден в правилах';
+  const rec = calcRecommendedPV();
+  if (rec <= 5) return 'Мин. ПВ: 5%';
+  return `Рекомендуемый мин. ПВ: ${rec}%`;
 }
 
 function validateFinalPvInput(data) {
@@ -3506,15 +3512,16 @@ function validateFinalPvInput(data) {
   if (!input || !errorEl) return;
 
   const val = parseFloat(input.value);
-  if (isNaN(val) || !data.risk_grade || data.no_scoring_response) {
+  const rec = calcRecommendedPV();
+
+  if (isNaN(val) || rec <= 5) {
     errorEl.style.display = 'none';
     if (saveBtn) saveBtn.disabled = false;
     return;
   }
 
-  const rule = _clientRiskRules.find(r => r.category.toLowerCase() === data.risk_grade.toLowerCase());
-  if (rule && val < rule.min_pv) {
-    errorEl.textContent = `ПВ (${val}%) ниже минимума для грейда ${data.risk_grade} (${rule.min_pv}%)`;
+  if (val < rec) {
+    errorEl.textContent = `ПВ (${val}%) ниже рекомендуемого минимума (${rec}%)`;
     errorEl.style.display = 'block';
     if (saveBtn) saveBtn.disabled = true;
   } else {

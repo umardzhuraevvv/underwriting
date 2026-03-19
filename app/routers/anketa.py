@@ -415,6 +415,14 @@ def save_anketa(
     anketa.auto_decision_reasons = json.dumps(verdict["auto_decision_reasons"], ensure_ascii=False)
     anketa.recommended_pv = verdict["recommended_pv"]
 
+    # Block save if PV below recommended
+    current_pv = anketa.down_payment_percent or 0
+    if current_pv < verdict["recommended_pv"]:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Первоначальный взнос ({current_pv:.0f}%) ниже рекомендуемого ({verdict['recommended_pv']:.0f}%). Увеличьте ПВ.",
+        )
+
     # If anketa was edited via approved edit request → set status to "review"
     has_approved_edit = db.query(EditRequest).filter(
         EditRequest.anketa_id == anketa.id,
