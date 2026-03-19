@@ -2346,43 +2346,54 @@ function renderKatmSummary(data, isLegalEntity) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  const fmtMoney = (n) => n != null ? Math.round(n).toLocaleString('ru-RU') : '—';
+  const fmtMoney = (n) => n != null && n !== 0 ? Math.round(n).toLocaleString('ru-RU') : '—';
+  const fmtDate = (d) => {
+    if (!d) return '—';
+    const parts = d.split('-');
+    return parts.length === 3 ? `${parts[2]}.${parts[1]}.${parts[0]}` : d;
+  };
 
-  let html = '';
+  let html = '<div class="katm-summary">';
 
-  // Header: name, score, report date, freshness
+  // Header card
   const name = data.full_name || data.company_name || '';
   const score = data.ki_score || '—';
   const reportDate = data.report_date || '—';
   const freshClass = data.is_fresh ? 'katm-badge-ok' : 'katm-badge-warn';
-  const freshText = data.is_fresh ? 'Свежая' : (data.freshness_warning || 'Не сегодняшняя');
+  const freshText = data.is_fresh ? 'Свежая КИ' : `КИ от ${fmtDate(reportDate)}, не сегодняшняя`;
 
   html += `<div class="katm-summary-header">
-    <div class="katm-summary-row"><strong>${escapeHtml(name)}</strong></div>
-    <div class="katm-summary-row">Скоринг: <strong>${escapeHtml(score)}</strong> &nbsp;|&nbsp; Дата выгрузки: <strong>${escapeHtml(reportDate)}</strong> <span class="${freshClass}">${escapeHtml(freshText)}</span></div>
+    <div class="katm-summary-info">
+      <div class="katm-summary-name">${escapeHtml(name)}</div>
+      <div class="katm-summary-meta">
+        <span>Дата: <strong>${fmtDate(reportDate)}</strong></span>
+        <span class="${freshClass}">${escapeHtml(freshText)}</span>
+      </div>
+    </div>
+    <div class="katm-score-badge">${escapeHtml(score)}</div>
   </div>`;
 
   // Current overdue alert
   const curOverdue = data.current_overdue_amount || 0;
   if (curOverdue > 0) {
-    html += `<div class="katm-alert-danger">Текущая просрочка: <strong>${fmtMoney(curOverdue)} сум</strong> — автоматический отказ до погашения</div>`;
+    html += `<div class="katm-alert-danger">Текущая просрочка: <strong>${fmtMoney(curOverdue)}</strong> сум — автоматический отказ до погашения</div>`;
   }
 
   // Active obligations table
   const contracts = data.contracts_detail || [];
   if (contracts.length > 0) {
-    html += `<div class="section-divider" style="margin-top:12px">Активные обязательства (${contracts.length})</div>`;
+    html += `<div class="katm-section-title">Активные обязательства &middot; ${contracts.length}</div>`;
     html += `<div class="katm-table-wrap"><table class="katm-table">
-      <thead><tr><th>Кредитор</th><th>Тип</th><th>Вид кредита</th><th>Остаток</th><th>Просрочка</th></tr></thead><tbody>`;
+      <thead><tr><th>Кредитор</th><th>Тип</th><th>Вид кредита</th><th style="text-align:right">Остаток</th><th style="text-align:right">Ежемес.</th><th style="text-align:right">Просрочка</th></tr></thead><tbody>`;
     for (const c of contracts) {
-      const overdueClass = c.overdue > 0 ? ' class="katm-overdue-cell"' : '';
-      const overdueText = c.overdue > 0 ? fmtMoney(c.overdue) : '—';
+      const hasOverdue = c.overdue > 0;
       html += `<tr>
-        <td>${escapeHtml(c.creditor || '—')}</td>
+        <td><strong>${escapeHtml(c.creditor || '—')}</strong></td>
         <td>${escapeHtml(c.creditor_type || '—')}</td>
         <td>${escapeHtml(c.credit_type || '—')}</td>
         <td class="num">${fmtMoney(c.balance)}</td>
-        <td${overdueClass}>${overdueText}</td>
+        <td class="num">${fmtMoney(c.monthly)}</td>
+        <td class="num ${hasOverdue ? 'katm-overdue-cell' : 'katm-no-overdue'}">${hasOverdue ? fmtMoney(c.overdue) : '—'}</td>
       </tr>`;
     }
     html += '</tbody></table></div>';
@@ -2394,26 +2405,27 @@ function renderKatmSummary(data, isLegalEntity) {
     const cats = ['до 30 дней', '31-60 дней', '61-90 дней', '90+ дней'];
     const hasData = cats.some(cat => summary[cat] && summary[cat].total > 0);
     if (hasData) {
-      html += `<div class="section-divider" style="margin-top:12px">Просрочки (сводка)</div>`;
+      html += `<div class="katm-section-title">История просрочек</div>`;
       html += `<div class="katm-table-wrap"><table class="katm-table">
-        <thead><tr><th>Категория</th><th>Всего</th><th>6 мес</th><th>12 мес</th><th>24 мес</th><th>Макс. сумма</th><th>Последняя</th></tr></thead><tbody>`;
+        <thead><tr><th>Категория</th><th style="text-align:right">Всего</th><th style="text-align:right">6 мес</th><th style="text-align:right">12 мес</th><th style="text-align:right">24 мес</th><th style="text-align:right">Макс. сумма</th><th>Последняя</th></tr></thead><tbody>`;
       for (const cat of cats) {
         const d = summary[cat] || {};
         if (!d.total) continue;
         html += `<tr>
-          <td>${escapeHtml(cat)}</td>
+          <td><strong>${escapeHtml(cat)}</strong></td>
           <td class="num">${d.total}</td>
           <td class="num">${d.last_6m}</td>
           <td class="num">${d.last_12m}</td>
           <td class="num">${d.last_24m}</td>
           <td class="num">${fmtMoney(d.max_amount)}</td>
-          <td>${d.last_date || '—'}</td>
+          <td>${fmtDate(d.last_date)}</td>
         </tr>`;
       }
       html += '</tbody></table></div>';
     }
   }
 
+  html += '</div>';
   container.innerHTML = html;
 }
 
