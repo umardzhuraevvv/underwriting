@@ -131,6 +131,7 @@ class AnketaDetail(BaseModel):
     systematic_overdue: bool | None = None
     worst_active_classification: str | None = None
     has_lombard: bool | None = None
+    current_overdue_amount: float | None = None
     # --- Legal entity: Company info ---
     company_name: str | None = None
     company_inn: str | None = None
@@ -344,6 +345,7 @@ class AnketaUpdate(BaseModel):
     systematic_overdue: bool | None = None
     worst_active_classification: CoerceStr = None
     has_lombard: bool | None = None
+    current_overdue_amount: float | None = None
     # --- Legal entity: Company info ---
     company_name: CoerceStr = None
     company_inn: CoerceStr = None

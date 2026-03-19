@@ -302,6 +302,13 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
             overdue_decision = rules.get("overdue_30_result", "approved")
             reasons.append(f"Просрочка до 30 дней — {overdue_decision}")
 
+    # --- Current overdue: auto reject ---
+    current_overdue_decision = "approved"
+    current_overdue_amt = getattr(anketa, 'current_overdue_amount', None)
+    if current_overdue_amt and current_overdue_amt > 0:
+        current_overdue_decision = "rejected"
+        reasons.append(f"Текущая просрочка {current_overdue_amt:,.0f} сум — отказ до погашения")
+
     # --- Credit report: systematic overdue ---
     systematic_decision = "approved"
     if getattr(anketa, 'systematic_overdue', False):
@@ -335,6 +342,7 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
 
     # --- Final decision = worst of all checks ---
     final = _worst_decision(dti_decision, overdue_decision)
+    final = _worst_decision(final, current_overdue_decision)
     final = _worst_decision(final, systematic_decision)
     final = _worst_decision(final, classification_decision)
     final = _worst_decision(final, lombard_decision)

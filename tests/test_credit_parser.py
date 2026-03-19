@@ -344,3 +344,94 @@ class TestOpenApplications10d:
     def test_d_class_applications(self):
         r = _load("04_uz_d_class.html")
         assert r["open_applications_10d"] == 3
+
+
+# ── Credit type tests ───────────────────────────────────────────────────────
+
+
+class TestCreditType:
+    def test_credit_type_present_in_contracts(self):
+        """contracts_detail should include credit_type field."""
+        r = _load("06_ru_d2_class.html")
+        for c in r["contracts_detail"]:
+            assert "credit_type" in c
+
+    def test_credit_type_ru_report(self):
+        """RU report should parse and normalize credit types."""
+        r = _load("06_ru_d2_class.html")
+        types = [c["credit_type"] for c in r["contracts_detail"] if c["credit_type"]]
+        assert len(types) > 0, "Expected at least one contract with credit_type"
+
+    def test_credit_type_uz_report(self):
+        """UZ report should parse and normalize credit types."""
+        r = _load("05_uz_large_portfolio.html")
+        types = [c["credit_type"] for c in r["contracts_detail"] if c["credit_type"]]
+        assert len(types) > 0, "Expected at least one contract with credit_type"
+
+    def test_credit_type_no_obligations(self):
+        """Report with no obligations should have empty contracts_detail."""
+        r = _load("03_uz_no_obligations.html")
+        assert r["contracts_detail"] == []
+
+
+# ── Overdue summary tests ───────────────────────────────────────────────────
+
+
+class TestOverdueSummary:
+    def test_summary_keys_present(self):
+        """overdue_summary should have all 4 categories."""
+        r = _load("06_ru_d2_class.html")
+        summary = r["overdue_summary"]
+        assert "до 30 дней" in summary
+        assert "31-60 дней" in summary
+        assert "61-90 дней" in summary
+        assert "90+ дней" in summary
+
+    def test_summary_fields_per_category(self):
+        """Each category should have total, last_6m, last_12m, last_24m, max_amount, last_date."""
+        r = _load("06_ru_d2_class.html")
+        for cat, data in r["overdue_summary"].items():
+            assert "total" in data, f"{cat}: missing total"
+            assert "last_6m" in data, f"{cat}: missing last_6m"
+            assert "last_12m" in data, f"{cat}: missing last_12m"
+            assert "last_24m" in data, f"{cat}: missing last_24m"
+            assert "max_amount" in data, f"{cat}: missing max_amount"
+            assert "last_date" in data, f"{cat}: missing last_date"
+
+    def test_summary_totals_match_episodes(self):
+        """Sum of all category totals should equal len(overdue_episodes)."""
+        r = _load("06_ru_d2_class.html")
+        summary = r["overdue_summary"]
+        total_from_summary = sum(v["total"] for v in summary.values())
+        assert total_from_summary == len(r["overdue_episodes"])
+
+    def test_summary_no_overdue(self):
+        """Report without overdue episodes should have zeroed summary."""
+        r = _load("03_uz_no_obligations.html")
+        summary = r["overdue_summary"]
+        for cat, data in summary.items():
+            assert data["total"] == 0, f"{cat}: expected 0 total"
+            assert data["last_date"] is None, f"{cat}: expected None last_date"
+
+    def test_summary_heavy_overdue_report(self):
+        """Report 06 (heavy overdue) should have non-zero 90+ category."""
+        r = _load("06_ru_d2_class.html")
+        assert r["overdue_summary"]["90+ дней"]["total"] > 0
+        assert r["overdue_summary"]["90+ дней"]["max_amount"] > 0
+
+    def test_summary_last_date_format(self):
+        """last_date should be YYYY-MM-DD format when present."""
+        r = _load("06_ru_d2_class.html")
+        import re
+        for cat, data in r["overdue_summary"].items():
+            if data["last_date"]:
+                assert re.match(r"\d{4}-\d{2}-\d{2}", data["last_date"]), \
+                    f"{cat}: bad date format: {data['last_date']}"
+
+    def test_summary_period_hierarchy(self):
+        """last_6m <= last_12m <= last_24m <= total for each category."""
+        r = _load("06_ru_d2_class.html")
+        for cat, data in r["overdue_summary"].items():
+            assert data["last_6m"] <= data["last_12m"], f"{cat}: 6m > 12m"
+            assert data["last_12m"] <= data["last_24m"], f"{cat}: 12m > 24m"
+            assert data["last_24m"] <= data["total"], f"{cat}: 24m > total"

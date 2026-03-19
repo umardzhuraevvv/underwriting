@@ -938,7 +938,7 @@ const anketaFields = [
   'max_continuous_overdue_percent_days', 'max_overdue_percent_amount',
   'overdue_category', 'last_overdue_date', 'overdue_reason',
   'risk_grade', 'no_scoring_response',
-  'systematic_overdue', 'worst_active_classification', 'has_lombard',
+  'systematic_overdue', 'worst_active_classification', 'has_lombard', 'current_overdue_amount',
 ];
 
 const leFields = [
@@ -1233,6 +1233,8 @@ function fillAnketaForm(data) {
     if (leWorstClass) leWorstClass.value = data.worst_active_classification || '';
     const leHasLombard = document.getElementById('f-le-has_lombard');
     if (leHasLombard) leHasLombard.value = data.has_lombard === true ? 'true' : data.has_lombard === false ? 'false' : '';
+    const leCurOverdue = document.getElementById('f-le-current_overdue_amount');
+    if (leCurOverdue) leCurOverdue.value = data.current_overdue_amount != null ? data.current_overdue_amount : '';
   } else {
     _currentClientType = 'individual';
     selectClientType('individual');
@@ -1303,6 +1305,7 @@ const floatFields = new Set([
   'other_income_period', 'other_income_total',
   'total_obligations_amount', 'monthly_obligations_payment',
   'max_overdue_principal_amount', 'max_overdue_percent_amount',
+  'current_overdue_amount',
 ]);
 
 // Integer fields
@@ -1377,6 +1380,8 @@ function collectAnketaData() {
     if (leWorstClass && leWorstClass.value) data.worst_active_classification = leWorstClass.value;
     const leHasLombard = document.getElementById('f-le-has_lombard');
     if (leHasLombard && leHasLombard.value) data.has_lombard = leHasLombard.value === 'true';
+    const leCurOverdue = document.getElementById('f-le-current_overdue_amount');
+    if (leCurOverdue && leCurOverdue.value) data.current_overdue_amount = parseFloat(leCurOverdue.value) || null;
   } else {
     data.client_type = 'individual';
   }
@@ -2259,6 +2264,7 @@ async function uploadKatm(fileInputId, isLegalEntity) {
 
     const data = await res.json();
     applyKatmData(data, isLegalEntity);
+    renderKatmSummary(data, isLegalEntity);
 
     if (statusEl) {
       statusEl.textContent = 'Данные загружены';
@@ -2306,6 +2312,8 @@ function applyKatmData(data, isLegalEntity) {
     if (worstClass) worstClass.value = data.worst_active_classification || '';
     const hasLombard = document.getElementById('f-le-has_lombard');
     if (hasLombard) hasLombard.value = data.has_lombard ? 'true' : 'false';
+    const curOverdue = document.getElementById('f-le-current_overdue_amount');
+    if (curOverdue) curOverdue.value = data.current_overdue_amount || '';
   } else {
     // Individual fields
     setField('f-has_current_obligations', data.has_current_obligations);
@@ -2328,7 +2336,85 @@ function applyKatmData(data, isLegalEntity) {
     if (worstClass) worstClass.value = data.worst_active_classification || '';
     const hasLombard = document.getElementById('f-has_lombard');
     if (hasLombard) hasLombard.value = data.has_lombard ? 'true' : 'false';
+    const curOverdue = document.getElementById('f-current_overdue_amount');
+    if (curOverdue) curOverdue.value = data.current_overdue_amount || '';
   }
+}
+
+function renderKatmSummary(data, isLegalEntity) {
+  const containerId = isLegalEntity ? 'leKatmSummary' : 'katmSummary';
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  const fmtMoney = (n) => n != null ? Math.round(n).toLocaleString('ru-RU') : '—';
+
+  let html = '';
+
+  // Header: name, score, report date, freshness
+  const name = data.full_name || data.company_name || '';
+  const score = data.ki_score || '—';
+  const reportDate = data.report_date || '—';
+  const freshClass = data.is_fresh ? 'katm-badge-ok' : 'katm-badge-warn';
+  const freshText = data.is_fresh ? 'Свежая' : (data.freshness_warning || 'Не сегодняшняя');
+
+  html += `<div class="katm-summary-header">
+    <div class="katm-summary-row"><strong>${escapeHtml(name)}</strong></div>
+    <div class="katm-summary-row">Скоринг: <strong>${escapeHtml(score)}</strong> &nbsp;|&nbsp; Дата выгрузки: <strong>${escapeHtml(reportDate)}</strong> <span class="${freshClass}">${escapeHtml(freshText)}</span></div>
+  </div>`;
+
+  // Current overdue alert
+  const curOverdue = data.current_overdue_amount || 0;
+  if (curOverdue > 0) {
+    html += `<div class="katm-alert-danger">Текущая просрочка: <strong>${fmtMoney(curOverdue)} сум</strong> — автоматический отказ до погашения</div>`;
+  }
+
+  // Active obligations table
+  const contracts = data.contracts_detail || [];
+  if (contracts.length > 0) {
+    html += `<div class="section-divider" style="margin-top:12px">Активные обязательства (${contracts.length})</div>`;
+    html += `<div class="katm-table-wrap"><table class="katm-table">
+      <thead><tr><th>Кредитор</th><th>Тип</th><th>Вид кредита</th><th>Остаток</th><th>Просрочка</th></tr></thead><tbody>`;
+    for (const c of contracts) {
+      const overdueClass = c.overdue > 0 ? ' class="katm-overdue-cell"' : '';
+      const overdueText = c.overdue > 0 ? fmtMoney(c.overdue) : '—';
+      html += `<tr>
+        <td>${escapeHtml(c.creditor || '—')}</td>
+        <td>${escapeHtml(c.creditor_type || '—')}</td>
+        <td>${escapeHtml(c.credit_type || '—')}</td>
+        <td class="num">${fmtMoney(c.balance)}</td>
+        <td${overdueClass}>${overdueText}</td>
+      </tr>`;
+    }
+    html += '</tbody></table></div>';
+  }
+
+  // Overdue summary table
+  const summary = data.overdue_summary;
+  if (summary) {
+    const cats = ['до 30 дней', '31-60 дней', '61-90 дней', '90+ дней'];
+    const hasData = cats.some(cat => summary[cat] && summary[cat].total > 0);
+    if (hasData) {
+      html += `<div class="section-divider" style="margin-top:12px">Просрочки (сводка)</div>`;
+      html += `<div class="katm-table-wrap"><table class="katm-table">
+        <thead><tr><th>Категория</th><th>Всего</th><th>6 мес</th><th>12 мес</th><th>24 мес</th><th>Макс. сумма</th><th>Последняя</th></tr></thead><tbody>`;
+      for (const cat of cats) {
+        const d = summary[cat] || {};
+        if (!d.total) continue;
+        html += `<tr>
+          <td>${escapeHtml(cat)}</td>
+          <td class="num">${d.total}</td>
+          <td class="num">${d.last_6m}</td>
+          <td class="num">${d.last_12m}</td>
+          <td class="num">${d.last_24m}</td>
+          <td class="num">${fmtMoney(d.max_amount)}</td>
+          <td>${d.last_date || '—'}</td>
+        </tr>`;
+      }
+      html += '</tbody></table></div>';
+    }
+  }
+
+  container.innerHTML = html;
 }
 
 function setupKatmListeners() {

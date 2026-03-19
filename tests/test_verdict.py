@@ -292,3 +292,41 @@ class TestVerdictRiskGradePV:
         a = _make_anketa(dti=40, risk_grade="E", down_payment_percent=3)
         result = calc_auto_verdict(a, default_rules)
         assert result["recommended_pv"] == 5.0
+
+
+# ===== Тесты текущей просрочки =====
+
+class TestVerdictCurrentOverdue:
+
+    def test_current_overdue_rejects(self, default_rules):
+        """current_overdue_amount > 0 → rejected."""
+        a = _make_anketa(dti=40, current_overdue_amount=500000)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+        reasons = " ".join(result["auto_decision_reasons"])
+        assert "Текущая просрочка" in reasons
+
+    def test_current_overdue_zero_no_effect(self, default_rules):
+        """current_overdue_amount = 0 → не влияет."""
+        a = _make_anketa(dti=40, current_overdue_amount=0)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_current_overdue_none_no_effect(self, default_rules):
+        """current_overdue_amount = None → не влияет."""
+        a = _make_anketa(dti=40, current_overdue_amount=None)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_current_overdue_overrides_good_dti(self, default_rules):
+        """DTI хороший, но текущая просрочка → rejected."""
+        a = _make_anketa(dti=20, current_overdue_amount=4024425)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+
+    def test_current_overdue_amount_in_reason(self, default_rules):
+        """Сумма просрочки отображается в причине."""
+        a = _make_anketa(dti=40, current_overdue_amount=1500000)
+        result = calc_auto_verdict(a, default_rules)
+        reasons = " ".join(result["auto_decision_reasons"])
+        assert "1,500,000" in reasons

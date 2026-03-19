@@ -45,6 +45,24 @@ CREDITOR_TYPES_NORMALIZE = {
     "LT": "LEASING", "ЛК": "LEASING",
 }
 
+CREDIT_TYPE_NORMALIZE = {
+    # RU
+    "Микрозаем": "Микрозаем",
+    "Автокредит": "Автокредит",
+    "Ипотека": "Ипотека",
+    "Кредитная карта (с открытием кредитной линии)": "Кредитная карта",
+    "Потребительский кредит": "Потребительский",
+    # UZ
+    "Mikroqarz": "Микрозаем",
+    "Mikrokredit": "Микрозаем",
+    "Ekspress kredit": "Экспресс-кредит",
+    "Ipoteka krediti": "Ипотека",
+    "Avtokredit": "Автокредит",
+    "Kredit liniyasi ochilmagan holda berilgan kreditlar": "Кредит",
+    "Ochiq kredit liniyasi orqali ajratilgan kredit karta": "Кредитная карта",
+    "Iste'mol krediti": "Потребительский",
+}
+
 
 # ── Helper functions ─────────────────────────────────────────────────────────
 
@@ -452,11 +470,12 @@ def _parse_contract_details(soup: BeautifulSoup, lang: str) -> dict:
             or "ЛОМБАРД" in creditor_name.upper()
         )
 
-        # Status and classification from the .list div
+        # Status, classification, credit_type from the .list div
         next_list = bar.find_next_sibling("div", class_="list")
         status = "unknown"
         classification = "н/д"
         contract_num = ""
+        credit_type = ""
 
         if next_list:
             for item_div in next_list.find_all("div", class_="item-title"):
@@ -478,6 +497,10 @@ def _parse_contract_details(soup: BeautifulSoup, lang: str) -> dict:
                     if val:
                         contract_num = val
 
+                if "Kredit turi" in text or "Вид кредита" in text:
+                    if val:
+                        credit_type = CREDIT_TYPE_NORMALIZE.get(val, val)
+
         if classification != "н/д":
             if status == "open":
                 active_classifications.append(classification)
@@ -490,6 +513,7 @@ def _parse_contract_details(soup: BeautifulSoup, lang: str) -> dict:
         details.append({
             "creditor": creditor_name,
             "creditor_type": norm_type,
+            "credit_type": credit_type,
             "status": status,
             "classification": classification,
             "contract_num": contract_num,
@@ -672,6 +696,7 @@ def _merge_contracts(table_data: list, detail_data: list) -> list:
         merged.append({
             "creditor": td.get("creditor", ""),
             "creditor_type": detail.get("creditor_type", ""),
+            "credit_type": detail.get("credit_type", ""),
             "status": detail.get("status", "open"),
             "classification": detail.get("classification", "н/д"),
             "balance": td.get("balance", 0.0),
@@ -679,6 +704,80 @@ def _merge_contracts(table_data: list, detail_data: list) -> list:
             "monthly": td.get("monthly", 0.0),
         })
     return merged
+
+
+def _compute_overdue_summary(result: dict):
+    """Aggregate overdue_episodes into summary by category and time period.
+
+    Categories: до 30 дней, 31-60 дней, 61-90 дней, 90+ дней.
+    Periods counted from report_date: total, last_6m, last_12m, last_24m.
+    """
+    episodes = result.get("overdue_episodes", [])
+    report_date = result.get("report_date")
+
+    categories = ["до 30 дней", "31-60 дней", "61-90 дней", "90+ дней"]
+    empty = {
+        cat: {"total": 0, "last_6m": 0, "last_12m": 0, "last_24m": 0,
+              "max_amount": 0.0, "last_date": None}
+        for cat in categories
+    }
+
+    if not episodes or not report_date:
+        result["overdue_summary"] = empty
+        return
+
+    try:
+        rd = datetime.strptime(report_date, "%Y-%m-%d")
+    except (ValueError, TypeError):
+        result["overdue_summary"] = empty
+        return
+
+    cutoff_6m = rd - timedelta(days=183)
+    cutoff_12m = rd - timedelta(days=365)
+    cutoff_24m = rd - timedelta(days=730)
+
+    summary = {
+        cat: {"total": 0, "last_6m": 0, "last_12m": 0, "last_24m": 0,
+              "max_amount": 0.0, "last_date": None}
+        for cat in categories
+    }
+
+    for ep in episodes:
+        days = ep.get("days", 0)
+        amount = ep.get("amount", 0.0) or 0.0
+        ep_date_str = ep.get("date")
+
+        if days <= 30:
+            cat = "до 30 дней"
+        elif days <= 60:
+            cat = "31-60 дней"
+        elif days <= 90:
+            cat = "61-90 дней"
+        else:
+            cat = "90+ дней"
+
+        bucket = summary[cat]
+        bucket["total"] += 1
+
+        if amount > bucket["max_amount"]:
+            bucket["max_amount"] = amount
+
+        if ep_date_str:
+            if bucket["last_date"] is None or ep_date_str > bucket["last_date"]:
+                bucket["last_date"] = ep_date_str
+
+            try:
+                ep_date = datetime.strptime(ep_date_str, "%Y-%m-%d")
+                if ep_date >= cutoff_6m:
+                    bucket["last_6m"] += 1
+                if ep_date >= cutoff_12m:
+                    bucket["last_12m"] += 1
+                if ep_date >= cutoff_24m:
+                    bucket["last_24m"] += 1
+            except (ValueError, TypeError):
+                pass
+
+    result["overdue_summary"] = summary
 
 
 def _compute_overdue_derived(result: dict):
@@ -782,6 +881,9 @@ def parse_infoscore_html(html_content: str) -> dict:
 
     # Closed contracts count
     result["closed_obligations_count"] = _count_closed_contracts(soup)
+
+    # Overdue summary by category
+    _compute_overdue_summary(result)
 
     # Derived overdue fields
     _compute_overdue_derived(result)

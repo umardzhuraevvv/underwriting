@@ -1052,6 +1052,75 @@ select.form-input {
   padding-left: 0;
 }
 
+/* KATM summary styles */
+.katm-summary-header {
+  padding: 10px 16px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  margin: 8px 16px 0;
+}
+.katm-summary-row {
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+.katm-badge-ok {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--success);
+  color: #fff;
+}
+.katm-badge-warn {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--warning, #f59e0b);
+  color: #fff;
+}
+.katm-alert-danger {
+  margin: 8px 16px;
+  padding: 10px 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--danger, #ef4444);
+  border-radius: 8px;
+  color: var(--danger, #ef4444);
+  font-size: 14px;
+  font-weight: 600;
+}
+.katm-table-wrap {
+  margin: 4px 16px 8px;
+  overflow-x: auto;
+}
+.katm-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.katm-table th, .katm-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  white-space: nowrap;
+}
+.katm-table th {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+}
+.katm-table td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.katm-overdue-cell {
+  color: var(--danger, #ef4444);
+  font-weight: 600;
+}
+
 .section-divider {
   padding: 14px 24px 8px;
   font-size: 12px;

@@ -1,6 +1,7 @@
 """Роутер для парсинга кредитных историй (КАТМ / InfoScore)."""
 
 import logging
+from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 
@@ -49,8 +50,17 @@ async def parse_credit_report(
             detail="Не удалось разобрать кредитную историю. Проверьте формат файла.",
         )
 
+    # Freshness check
+    report_date = result.get("report_date")
+    result["is_fresh"] = (report_date == str(date.today())) if report_date else False
+    if not result["is_fresh"]:
+        result["freshness_warning"] = f"КИ от {report_date or 'неизвестно'}, не сегодняшняя"
+    else:
+        result["freshness_warning"] = None
+
     logger.info(
-        "Кредитная история разобрана: user=%s, entity=%s, name=%s",
+        "Кредитная история разобрана: user=%s, entity=%s, name=%s, fresh=%s",
         user.id, result.get("entity_type"), result.get("full_name") or result.get("company_name"),
+        result["is_fresh"],
     )
     return result

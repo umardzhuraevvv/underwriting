@@ -92,3 +92,46 @@ class TestCreditReportParse:
                 headers=inspector_headers,
             )
         assert resp.status_code == 200
+
+    def test_freshness_fields_present(self, client, admin_headers, seeded_db):
+        """Ответ содержит is_fresh и freshness_warning."""
+        filepath = os.path.join(FIXTURES_DIR, "01_ru_individual_clean.html")
+        with open(filepath, "rb") as f:
+            resp = client.post(
+                "/api/v1/credit-report/parse",
+                files={"file": ("report.html", f, "text/html")},
+                headers=admin_headers,
+            )
+        data = resp.json()
+        assert "is_fresh" in data
+        assert "freshness_warning" in data
+        # Fixture report_date is 2025-10-22, not today → not fresh
+        assert data["is_fresh"] is False
+        assert "не сегодняшняя" in data["freshness_warning"]
+
+    def test_overdue_summary_in_response(self, client, admin_headers, seeded_db):
+        """Ответ содержит overdue_summary."""
+        filepath = os.path.join(FIXTURES_DIR, "06_ru_d2_class.html")
+        with open(filepath, "rb") as f:
+            resp = client.post(
+                "/api/v1/credit-report/parse",
+                files={"file": ("report.html", f, "text/html")},
+                headers=admin_headers,
+            )
+        data = resp.json()
+        assert "overdue_summary" in data
+        assert "до 30 дней" in data["overdue_summary"]
+
+    def test_credit_type_in_contracts(self, client, admin_headers, seeded_db):
+        """contracts_detail содержит credit_type."""
+        filepath = os.path.join(FIXTURES_DIR, "06_ru_d2_class.html")
+        with open(filepath, "rb") as f:
+            resp = client.post(
+                "/api/v1/credit-report/parse",
+                files={"file": ("report.html", f, "text/html")},
+                headers=admin_headers,
+            )
+        data = resp.json()
+        assert len(data["contracts_detail"]) > 0
+        for c in data["contracts_detail"]:
+            assert "credit_type" in c
