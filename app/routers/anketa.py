@@ -408,7 +408,9 @@ def save_anketa(
 
     # Auto-verdict
     rules = load_rules(db)
-    verdict = calc_auto_verdict(anketa, rules)
+    risk_rules_raw = db.query(RiskRule).filter(RiskRule.is_active == True).all()
+    risk_rules = [{"category": r.category, "min_pv": r.min_pv} for r in risk_rules_raw]
+    verdict = calc_auto_verdict(anketa, rules, risk_rules=risk_rules)
     anketa.auto_decision = verdict["auto_decision"]
     anketa.auto_decision_reasons = json.dumps(verdict["auto_decision_reasons"], ensure_ascii=False)
     anketa.recommended_pv = verdict["recommended_pv"]

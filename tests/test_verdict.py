@@ -231,3 +231,64 @@ class TestVerdictCreditReport:
         a = _make_anketa(dti=40, worst_active_classification="Безнадежный", has_lombard=True, down_payment_percent=10)
         result = calc_auto_verdict(a, default_rules)
         assert result["recommended_pv"] == 20.0
+
+
+# ===== Тесты риск-грейд + ПВ =====
+
+class TestVerdictRiskGradePV:
+    """Проверяем что risk_grade E/F поднимает базовый ПВ до min_pv из RiskRule."""
+
+    RISK_RULES = [
+        {"category": "E", "min_pv": 20.0},
+        {"category": "E1", "min_pv": 20.0},
+        {"category": "F", "min_pv": 20.0},
+        {"category": "F1", "min_pv": 25.0},
+    ]
+
+    def test_grade_e_base_pv_20(self, default_rules):
+        """risk_grade=E → recommended_pv = 20 (а не 5)."""
+        a = _make_anketa(dti=40, risk_grade="E", down_payment_percent=10)
+        result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
+        assert result["recommended_pv"] == 20.0
+
+    def test_grade_f1_base_pv_25(self, default_rules):
+        """risk_grade=F1 → recommended_pv = 25."""
+        a = _make_anketa(dti=40, risk_grade="F1", down_payment_percent=10)
+        result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
+        assert result["recommended_pv"] == 25.0
+
+    def test_grade_e_plus_lombard(self, default_rules):
+        """risk_grade=E (base 20) + lombard (+5) → recommended_pv = 25."""
+        a = _make_anketa(dti=40, risk_grade="E", has_lombard=True, down_payment_percent=10)
+        result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
+        assert result["recommended_pv"] == 25.0
+
+    def test_grade_e_plus_bad_classification(self, default_rules):
+        """risk_grade=E (base 20) + bad classification (+10) → recommended_pv = 30."""
+        a = _make_anketa(dti=40, risk_grade="E", worst_active_classification="Безнадежный", down_payment_percent=10)
+        result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
+        assert result["recommended_pv"] == 30.0
+
+    def test_no_grade_stays_base_5(self, default_rules):
+        """Без risk_grade → базовый ПВ = 5%."""
+        a = _make_anketa(dti=40, down_payment_percent=3)
+        result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
+        assert result["recommended_pv"] == 5.0
+
+    def test_no_scoring_response_ignores_grade(self, default_rules):
+        """no_scoring_response=True → грейд игнорируется, базовый ПВ = 5%."""
+        a = _make_anketa(dti=40, risk_grade="E", no_scoring_response=True, down_payment_percent=3)
+        result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
+        assert result["recommended_pv"] == 5.0
+
+    def test_unknown_grade_stays_base(self, default_rules):
+        """Неизвестный грейд (не в RiskRule) → базовый ПВ = 5%."""
+        a = _make_anketa(dti=40, risk_grade="Z99", down_payment_percent=3)
+        result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
+        assert result["recommended_pv"] == 5.0
+
+    def test_without_risk_rules_param(self, default_rules):
+        """Без risk_rules параметра (обратная совместимость) → базовый ПВ = 5%."""
+        a = _make_anketa(dti=40, risk_grade="E", down_payment_percent=3)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["recommended_pv"] == 5.0

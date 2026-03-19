@@ -199,8 +199,11 @@ def _calc_overdue_decision_for_category(cat: str | None, overdue_date: date | No
     return decision, pv_add
 
 
-def calc_auto_verdict(anketa: Anketa, rules: dict) -> dict:
-    """Calculate automatic underwriting verdict based on rules."""
+def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = None) -> dict:
+    """Calculate automatic underwriting verdict based on rules.
+
+    risk_rules: list of dicts {"category": "E", "min_pv": 20.0} from RiskRule table.
+    """
     reasons = []
     pv_add = 0.0
 
@@ -337,10 +340,19 @@ def calc_auto_verdict(anketa: Anketa, rules: dict) -> dict:
     final = _worst_decision(final, lombard_decision)
 
     # --- Recommended PV ---
-    min_pv = rules.get("min_pv_percent", 5)
+    base_pv = rules.get("min_pv_percent", 5)
+
+    # If risk grade matches a RiskRule, use its min_pv as the base (usually 20% for E/F grades)
+    grade = getattr(anketa, 'risk_grade', None)
+    no_scoring = getattr(anketa, 'no_scoring_response', False)
+    if grade and not no_scoring and risk_rules:
+        matched = next((r for r in risk_rules if r["category"].lower() == grade.lower()), None)
+        if matched and matched["min_pv"] > base_pv:
+            base_pv = matched["min_pv"]
+            reasons.append(f"Риск-грейд {grade} — мин. ПВ {base_pv:.0f}%")
+
     current_pv = anketa.down_payment_percent or 0
-    # Рекомендуемый ПВ = базовый минимум + добавки из правил (независимо от выбора клиента)
-    recommended_pv = min_pv + pv_add
+    recommended_pv = base_pv + pv_add
     if current_pv < recommended_pv:
         reasons.append(f"Текущий ПВ {current_pv:.0f}% ниже рекомендуемого {recommended_pv:.0f}%")
 
