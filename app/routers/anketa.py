@@ -476,6 +476,13 @@ def conclude_anketa(
     if data.decision not in valid_decisions:
         raise HTTPException(status_code=400, detail=f"Недопустимое решение. Допустимые: {', '.join(valid_decisions)}")
 
+    # При автовердикте "rejected" — разрешён только отказ андеррайтера
+    if anketa.auto_decision == "rejected" and data.decision not in {"rejected_underwriter"}:
+        raise HTTPException(
+            status_code=422,
+            detail="Автовердикт — отказ. Одобрение или рассмотрение невозможно.",
+        )
+
     # Validate final_pv (required)
     if data.final_pv is None:
         raise HTTPException(status_code=400, detail="Укажите итоговый ПВ%")

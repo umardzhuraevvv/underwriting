@@ -189,7 +189,7 @@ class TestWebhookOnConclude:
 
         resp = client.post(
             f"/api/v1/anketas/{anketa_id}/conclude",
-            json={"decision": "approved", "comment": "OK", "final_pv": 20},
+            json={"decision": "rejected_underwriter", "comment": "OK", "final_pv": 20},
             headers=admin_headers,
         )
         assert resp.status_code == 200, f"Conclude → 200, получили {resp.status_code}: {resp.text}"
@@ -203,9 +203,9 @@ class TestWebhookOnConclude:
         # Проверить payload
         sent_body = call_kwargs.kwargs.get("content") or call_kwargs[1].get("content")
         payload = json.loads(sent_body)
-        assert payload["event"] == "anketa.approved"
+        assert payload["event"] == "anketa.rejected_underwriter"
         assert payload["anketa_id"] == anketa_id
-        assert payload["decision"] == "approved"
+        assert payload["decision"] == "rejected_underwriter"
 
     @patch("app.services.webhook_service.httpx.Client")
     def test_webhook_not_sent_for_filtered_events(self, mock_client_cls, client, admin_headers, sample_anketa_data, seeded_db):
@@ -216,10 +216,10 @@ class TestWebhookOnConclude:
         mock_client_cls.return_value = mock_http
 
         db = seeded_db["session"]
-        # Webhook слушает только rejected
+        # Webhook слушает только approved (но авто-вердикт rejected — одобрение невозможно)
         wh = WebhookConfig(
-            name="Rejected Only", url="https://rejected.example.com/wh",
-            events="rejected", is_active=True,
+            name="Approved Only", url="https://approved.example.com/wh",
+            events="approved", is_active=True,
             created_by=seeded_db["admin"].id,
         )
         db.add(wh)
@@ -232,10 +232,10 @@ class TestWebhookOnConclude:
 
         resp = client.post(
             f"/api/v1/anketas/{anketa_id}/conclude",
-            json={"decision": "approved", "comment": "OK", "final_pv": 20},
+            json={"decision": "rejected_underwriter", "comment": "OK", "final_pv": 20},
             headers=admin_headers,
         )
         assert resp.status_code == 200
 
-        # Webhook НЕ должен быть вызван (events=rejected, а decision=approved)
+        # Webhook НЕ должен быть вызван (events=approved, а decision=rejected_underwriter)
         assert not mock_http.post.called, "Webhook не должен отправляться для отфильтрованного события"

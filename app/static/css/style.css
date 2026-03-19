@@ -1581,6 +1581,11 @@ select.form-input {
   background: #EEF2FF;
   color: #6366F1;
 }
+.decision-btn.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 /* Conclusion result block */
 .conclusion-result {

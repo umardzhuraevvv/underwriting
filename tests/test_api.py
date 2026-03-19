@@ -94,12 +94,12 @@ class TestAnketaBusinessFlow:
 
         resp = client.post(
             f"/api/v1/anketas/{anketa_id}/conclude",
-            json={"decision": "approved", "comment": "Одобрено тестом", "final_pv": 20},
+            json={"decision": "rejected_underwriter", "comment": "Отказ тестом", "final_pv": 20},
             headers=admin_headers,
         )
         assert resp.status_code == 200, f"Заключение → 200, получили {resp.status_code}"
         data = resp.json()
-        assert data["decision"] == "approved", f"Решение = approved, получили {data['decision']}"
+        assert data["decision"] == "rejected_underwriter", f"Решение = rejected_underwriter, получили {data['decision']}"
         assert data["concluded_by"] is not None, "concluded_by должен быть заполнен"
 
     def test_conclude_without_permission(self, client, inspector_headers, admin_headers, sample_anketa_data, seeded_db):
@@ -135,7 +135,7 @@ class TestPublicAccess:
         client.post(f"/api/v1/anketas/{anketa_id}/save", headers=admin_headers)
         client.post(
             f"/api/v1/anketas/{anketa_id}/conclude",
-            json={"decision": "approved", "comment": "Тест", "final_pv": 20},
+            json={"decision": "rejected_underwriter", "comment": "Тест", "final_pv": 20},
             headers=admin_headers,
         )
 

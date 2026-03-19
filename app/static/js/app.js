@@ -2578,8 +2578,8 @@ function renderConclusionPanel(data) {
 
   // Mode 2: status === saved or review — show auto-verdict + conclusion form
   if ((data.status === 'saved' || data.status === 'review') && canConclude) {
-    // Pre-select auto_decision
-    _selectedDecision = data.auto_decision || null;
+    // Pre-select auto_decision; if rejected, map to rejected_underwriter
+    _selectedDecision = data.auto_decision === 'rejected' ? 'rejected_underwriter' : (data.auto_decision || null);
 
     // Auto-verdict block
     const autoDecisionLabels = { approved: 'Одобрено', review: 'На рассмотрение', rejected: 'Отказ' };
@@ -2602,6 +2602,7 @@ function renderConclusionPanel(data) {
     }
 
     // Build decision buttons with auto_decision pre-selected
+    const autoRejected = data.auto_decision === 'rejected';
     const decisions = [
       { key: 'approved', label: 'Одобрить' },
       { key: 'review', label: 'На рассмотр.' },
@@ -2609,6 +2610,10 @@ function renderConclusionPanel(data) {
       { key: 'rejected_client', label: 'Отказ клиента' },
     ];
     const btnsHtml = decisions.map(d => {
+      // При автовердикте "Отказ" — только "Отказ андерр." доступен
+      if (autoRejected && d.key !== 'rejected_underwriter') {
+        return `<button class="decision-btn disabled" id="dbtn-${d.key}" disabled title="Автовердикт: отказ">${d.label}</button>`;
+      }
       const sel = (d.key === _selectedDecision) ? ' selected-' + d.key : '';
       return `<button class="decision-btn${sel}" id="dbtn-${d.key}" onclick="selectDecision('${d.key}', this)">${d.label}</button>`;
     }).join('');
