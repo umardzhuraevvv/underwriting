@@ -716,31 +716,27 @@ def _compute_overdue_summary(result: dict):
     report_date = result.get("report_date")
 
     categories = ["до 30 дней", "31-60 дней", "61-90 дней", "90+ дней"]
-    empty = {
-        cat: {"total": 0, "last_6m": 0, "last_12m": 0, "last_24m": 0,
-              "max_amount": 0.0, "last_date": None}
-        for cat in categories
-    }
+
+    def _empty_bucket():
+        return {"total": 0, "last_6m": 0, "last_12m": 0, "last_24m": 0,
+                "max_amount": 0.0, "last_date": None,
+                "last_date_6m": None, "last_date_12m": None, "last_date_24m": None}
 
     if not episodes or not report_date:
-        result["overdue_summary"] = empty
+        result["overdue_summary"] = {cat: _empty_bucket() for cat in categories}
         return
 
     try:
         rd = datetime.strptime(report_date, "%Y-%m-%d")
     except (ValueError, TypeError):
-        result["overdue_summary"] = empty
+        result["overdue_summary"] = {cat: _empty_bucket() for cat in categories}
         return
 
     cutoff_6m = rd - timedelta(days=183)
     cutoff_12m = rd - timedelta(days=365)
     cutoff_24m = rd - timedelta(days=730)
 
-    summary = {
-        cat: {"total": 0, "last_6m": 0, "last_12m": 0, "last_24m": 0,
-              "max_amount": 0.0, "last_date": None}
-        for cat in categories
-    }
+    summary = {cat: _empty_bucket() for cat in categories}
 
     for ep in episodes:
         days = ep.get("days", 0)
@@ -770,10 +766,16 @@ def _compute_overdue_summary(result: dict):
                 ep_date = datetime.strptime(ep_date_str, "%Y-%m-%d")
                 if ep_date >= cutoff_6m:
                     bucket["last_6m"] += 1
+                    if bucket["last_date_6m"] is None or ep_date_str > bucket["last_date_6m"]:
+                        bucket["last_date_6m"] = ep_date_str
                 if ep_date >= cutoff_12m:
                     bucket["last_12m"] += 1
+                    if bucket["last_date_12m"] is None or ep_date_str > bucket["last_date_12m"]:
+                        bucket["last_date_12m"] = ep_date_str
                 if ep_date >= cutoff_24m:
                     bucket["last_24m"] += 1
+                    if bucket["last_date_24m"] is None or ep_date_str > bucket["last_date_24m"]:
+                        bucket["last_date_24m"] = ep_date_str
             except (ValueError, TypeError):
                 pass
 

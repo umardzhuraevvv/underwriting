@@ -2405,7 +2405,7 @@ function renderKatmSummary(data, isLegalEntity) {
     if (hasData) {
       html += `<div class="katm-section-title">История просрочек</div>`;
       html += `<div class="katm-table-wrap"><table class="katm-table">
-        <thead><tr><th>Категория</th><th style="text-align:right">Всего</th><th style="text-align:right">6 мес</th><th style="text-align:right">12 мес</th><th style="text-align:right">24 мес</th><th style="text-align:right">Макс. сумма</th><th>Последняя</th></tr></thead><tbody>`;
+        <thead><tr><th>Категория</th><th style="text-align:right">Всего</th><th style="text-align:right">6 мес</th><th>Посл. дата (6м)</th><th style="text-align:right">12 мес</th><th>Посл. дата (12м)</th><th style="text-align:right">24 мес</th><th style="text-align:right">Макс. сумма</th><th>Последняя</th></tr></thead><tbody>`;
       for (const cat of cats) {
         const d = summary[cat] || {};
         if (!d.total) continue;
@@ -2413,7 +2413,9 @@ function renderKatmSummary(data, isLegalEntity) {
           <td><strong>${escapeHtml(cat)}</strong></td>
           <td class="num">${d.total}</td>
           <td class="num">${d.last_6m}</td>
+          <td>${fmtDate(d.last_date_6m)}</td>
           <td class="num">${d.last_12m}</td>
+          <td>${fmtDate(d.last_date_12m)}</td>
           <td class="num">${d.last_24m}</td>
           <td class="num">${fmtMoney(d.max_amount)}</td>
           <td>${fmtDate(d.last_date)}</td>

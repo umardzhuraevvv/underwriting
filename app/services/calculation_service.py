@@ -8,6 +8,13 @@ from app.database import Anketa, UnderwritingRule
 logger = logging.getLogger("app")
 
 
+_DECISION_RU = {"approved": "одобрено", "review": "на рассмотрение", "rejected": "отказ"}
+
+
+def _decision_ru(d: str) -> str:
+    return _DECISION_RU.get(d, d)
+
+
 def calc_annuity(principal: float, annual_rate: float, months: int) -> float:
     """Calculate annuity monthly payment."""
     if not principal or not annual_rate or not months:
@@ -16,6 +23,16 @@ def calc_annuity(principal: float, annual_rate: float, months: int) -> float:
     if r == 0:
         return principal / months
     return principal * (r * (1 + r) ** months) / ((1 + r) ** months - 1)
+
+
+def calc_max_principal(annual_rate: float, months: int, max_payment: float) -> float:
+    """Inverse annuity: max loan principal for a given max monthly payment."""
+    if not annual_rate or not months or max_payment <= 0:
+        return 0.0
+    r = annual_rate / 100 / 12
+    if r == 0:
+        return max_payment * months
+    return max_payment * ((1 + r) ** months - 1) / (r * (1 + r) ** months)
 
 
 def calc_total_monthly_income(anketa: Anketa) -> float:
@@ -164,37 +181,37 @@ def _calc_overdue_decision_for_category(cat: str | None, overdue_date: date | No
             far = rules.get("overdue_31_60_threshold_far", 12)
             if months is not None and months < near:
                 decision = rules.get("overdue_31_60_lt_near_result", "rejected")
-                reasons.append(f"{prefix}Просрочка 31-60, давность {months} мес < {near} мес — {decision}")
+                reasons.append(f"{prefix}Просрочка 31-60, давность {months} мес < {near} мес — {_decision_ru(decision)}")
             elif months is not None and months <= far:
                 decision = rules.get("overdue_31_60_near_to_far_result", "review")
                 pv_add += rules.get("overdue_31_60_near_to_far_pv_add", 5)
-                reasons.append(f"{prefix}Просрочка 31-60, давность {months} мес ({near}–{far}) — {decision}, ПВ +{rules.get('overdue_31_60_near_to_far_pv_add', 5)}%")
+                reasons.append(f"{prefix}Просрочка 31-60, давность {months} мес ({near}–{far}) — {_decision_ru(decision)}, ПВ +{rules.get('overdue_31_60_near_to_far_pv_add', 5)}%")
             else:
                 decision = rules.get("overdue_31_60_gt_far_result", "approved")
                 pv_add += rules.get("overdue_31_60_gt_far_pv_add", 5)
                 m_str = f"{months} мес" if months is not None else "нет даты"
-                reasons.append(f"{prefix}Просрочка 31-60, давность {m_str} > {far} мес — {decision}, ПВ +{rules.get('overdue_31_60_gt_far_pv_add', 5)}%")
+                reasons.append(f"{prefix}Просрочка 31-60, давность {m_str} > {far} мес — {_decision_ru(decision)}, ПВ +{rules.get('overdue_31_60_gt_far_pv_add', 5)}%")
         elif cat == "61-90":
             threshold = rules.get("overdue_61_90_threshold", 12)
             if months is not None and months > threshold:
                 decision = rules.get("overdue_61_90_gt_result", "review")
-                reasons.append(f"{prefix}Просрочка 61-90, давность {months} мес > {threshold} мес — {decision}")
+                reasons.append(f"{prefix}Просрочка 61-90, давность {months} мес > {threshold} мес — {_decision_ru(decision)}")
             else:
                 decision = rules.get("overdue_61_90_lte_result", "rejected")
                 m_str = f"{months} мес" if months is not None else "нет даты"
-                reasons.append(f"{prefix}Просрочка 61-90, давность {m_str} ≤ {threshold} мес — {decision}")
+                reasons.append(f"{prefix}Просрочка 61-90, давность {m_str} ≤ {threshold} мес — {_decision_ru(decision)}")
         elif cat == "90+":
             threshold = rules.get("overdue_90plus_threshold", 24)
             if months is not None and months > threshold:
                 decision = rules.get("overdue_90plus_gt_result", "review")
-                reasons.append(f"{prefix}Просрочка 90+, давность {months} мес > {threshold} мес — {decision}")
+                reasons.append(f"{prefix}Просрочка 90+, давность {months} мес > {threshold} мес — {_decision_ru(decision)}")
             else:
                 decision = rules.get("overdue_90plus_lte_result", "rejected")
                 m_str = f"{months} мес" if months is not None else "нет даты"
-                reasons.append(f"{prefix}Просрочка 90+, давность {m_str} ≤ {threshold} мес — {decision}")
+                reasons.append(f"{prefix}Просрочка 90+, давность {m_str} ≤ {threshold} мес — {_decision_ru(decision)}")
     elif cat == "до 30 дней":
         decision = rules.get("overdue_30_result", "approved")
-        reasons.append(f"{prefix}Просрочка до 30 дней — {decision}")
+        reasons.append(f"{prefix}Просрочка до 30 дней — {_decision_ru(decision)}")
 
     return decision, pv_add
 
@@ -270,37 +287,37 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
                 far = rules.get("overdue_31_60_threshold_far", 12)
                 if months is not None and months < near:
                     overdue_decision = rules.get("overdue_31_60_lt_near_result", "rejected")
-                    reasons.append(f"Просрочка 31-60, давность {months} мес < {near} мес — {overdue_decision}")
+                    reasons.append(f"Просрочка 31-60, давность {months} мес < {near} мес — {_decision_ru(overdue_decision)}")
                 elif months is not None and months <= far:
                     overdue_decision = rules.get("overdue_31_60_near_to_far_result", "review")
                     pv_add += rules.get("overdue_31_60_near_to_far_pv_add", 5)
-                    reasons.append(f"Просрочка 31-60, давность {months} мес ({near}–{far}) — {overdue_decision}, ПВ +{rules.get('overdue_31_60_near_to_far_pv_add', 5)}%")
+                    reasons.append(f"Просрочка 31-60, давность {months} мес ({near}–{far}) — {_decision_ru(overdue_decision)}, ПВ +{rules.get('overdue_31_60_near_to_far_pv_add', 5)}%")
                 else:
                     overdue_decision = rules.get("overdue_31_60_gt_far_result", "approved")
                     pv_add += rules.get("overdue_31_60_gt_far_pv_add", 5)
                     m_str = f"{months} мес" if months is not None else "нет даты"
-                    reasons.append(f"Просрочка 31-60, давность {m_str} > {far} мес — {overdue_decision}, ПВ +{rules.get('overdue_31_60_gt_far_pv_add', 5)}%")
+                    reasons.append(f"Просрочка 31-60, давность {m_str} > {far} мес — {_decision_ru(overdue_decision)}, ПВ +{rules.get('overdue_31_60_gt_far_pv_add', 5)}%")
             elif cat == "61-90":
                 threshold = rules.get("overdue_61_90_threshold", 12)
                 if months is not None and months > threshold:
                     overdue_decision = rules.get("overdue_61_90_gt_result", "review")
-                    reasons.append(f"Просрочка 61-90, давность {months} мес > {threshold} мес — {overdue_decision}")
+                    reasons.append(f"Просрочка 61-90, давность {months} мес > {threshold} мес — {_decision_ru(overdue_decision)}")
                 else:
                     overdue_decision = rules.get("overdue_61_90_lte_result", "rejected")
                     m_str = f"{months} мес" if months is not None else "нет даты"
-                    reasons.append(f"Просрочка 61-90, давность {m_str} ≤ {threshold} мес — {overdue_decision}")
+                    reasons.append(f"Просрочка 61-90, давность {m_str} ≤ {threshold} мес — {_decision_ru(overdue_decision)}")
             elif cat == "90+":
                 threshold = rules.get("overdue_90plus_threshold", 24)
                 if months is not None and months > threshold:
                     overdue_decision = rules.get("overdue_90plus_gt_result", "review")
-                    reasons.append(f"Просрочка 90+, давность {months} мес > {threshold} мес — {overdue_decision}")
+                    reasons.append(f"Просрочка 90+, давность {months} мес > {threshold} мес — {_decision_ru(overdue_decision)}")
                 else:
                     overdue_decision = rules.get("overdue_90plus_lte_result", "rejected")
                     m_str = f"{months} мес" if months is not None else "нет даты"
-                    reasons.append(f"Просрочка 90+, давность {m_str} ≤ {threshold} мес — {overdue_decision}")
+                    reasons.append(f"Просрочка 90+, давность {m_str} ≤ {threshold} мес — {_decision_ru(overdue_decision)}")
         elif cat == "до 30 дней":
             overdue_decision = rules.get("overdue_30_result", "approved")
-            reasons.append(f"Просрочка до 30 дней — {overdue_decision}")
+            reasons.append(f"Просрочка до 30 дней — {_decision_ru(overdue_decision)}")
 
     # --- Current overdue: auto reject ---
     current_overdue_decision = "approved"
@@ -313,7 +330,7 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
     systematic_decision = "approved"
     if getattr(anketa, 'systematic_overdue', False):
         systematic_decision = rules.get("systematic_overdue_result", "rejected")
-        reasons.append(f"Систематическая просрочка (3+ эпизодов 31+ дней за 12 мес) — {systematic_decision}")
+        reasons.append(f"Систематическая просрочка (3+ эпизодов 31+ дней за 12 мес) — {_decision_ru(systematic_decision)}")
 
     # --- Credit report: worst active classification ---
     classification_decision = "approved"
@@ -325,12 +342,12 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
             classification_decision = rules.get("bad_classification_result", "rejected")
             add = rules.get("bad_classification_pv_add", 10)
             pv_add += add
-            reasons.append(f"Класс качества активов: {worst_class} — {classification_decision}, ПВ +{add}%")
+            reasons.append(f"Класс качества активов: {worst_class} — {_decision_ru(classification_decision)}, ПВ +{add}%")
         elif worst_class in WARN_CLASSES:
             classification_decision = rules.get("warn_classification_result", "review")
             add = rules.get("warn_classification_pv_add", 5)
             pv_add += add
-            reasons.append(f"Класс качества активов: {worst_class} — {classification_decision}, ПВ +{add}%")
+            reasons.append(f"Класс качества активов: {worst_class} — {_decision_ru(classification_decision)}, ПВ +{add}%")
 
     # --- Credit report: lombard ---
     lombard_decision = "approved"
@@ -338,7 +355,7 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
         lombard_decision = rules.get("lombard_result", "review")
         add = rules.get("lombard_pv_add", 5)
         pv_add += add
-        reasons.append(f"Ломбардные обязательства — {lombard_decision}, ПВ +{add}%")
+        reasons.append(f"Ломбардные обязательства — {_decision_ru(lombard_decision)}, ПВ +{add}%")
 
     # --- Final decision = worst of all checks ---
     final = _worst_decision(dti_decision, overdue_decision)
@@ -364,6 +381,31 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
     if current_pv < recommended_pv:
         reasons.append(f"Текущий ПВ {current_pv:.0f}% ниже рекомендуемого {recommended_pv:.0f}%")
 
+    # --- DTI suggestions: if DTI > threshold, suggest min PV or max car price ---
+    dti_suggestion_pv = None
+    dti_suggestion_price = None
+    income = anketa.total_monthly_income or 0
+    obligations = anketa.monthly_obligations_payment or 0
+    rate = anketa.interest_rate or 0
+    term = anketa.lease_term_months or 0
+    price = anketa.purchase_price or 0
+
+    if dti is not None and dti > max_approve and income > 0 and rate > 0 and term > 0 and price > 0:
+        max_payment = income * max_approve / 100 - obligations
+        if max_payment > 0:
+            max_principal = calc_max_principal(rate, term, max_payment)
+            # Min PV for DTI ≤ 50% at current car price
+            if max_principal < price:
+                min_pv_for_dti = round((1 - max_principal / price) * 100, 1)
+                min_pv_for_dti = max(min_pv_for_dti, recommended_pv)
+                dti_suggestion_pv = min_pv_for_dti
+                reasons.append(f"Для DTI ≤ {max_approve}%: увеличьте ПВ до {min_pv_for_dti:.0f}%")
+            # Max car price for DTI ≤ 50% at current PV%
+            if current_pv > 0:
+                max_price = max_principal / (1 - current_pv / 100)
+                dti_suggestion_price = round(max_price)
+                reasons.append(f"Или выберите авто до {max_price:,.0f} сум при ПВ {current_pv:.0f}%")
+
     logger.info(
         "Авто-вердикт для анкеты #%s: %s, DTI=%.1f%%",
         getattr(anketa, 'id', '?'), final, anketa.dti or 0,
@@ -373,4 +415,6 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
         "auto_decision": final,
         "auto_decision_reasons": reasons,
         "recommended_pv": round(recommended_pv, 1),
+        "dti_suggestion_pv": dti_suggestion_pv,
+        "dti_suggestion_price": dti_suggestion_price,
     }

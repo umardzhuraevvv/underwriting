@@ -397,6 +397,9 @@ class TestOverdueSummary:
             assert "last_24m" in data, f"{cat}: missing last_24m"
             assert "max_amount" in data, f"{cat}: missing max_amount"
             assert "last_date" in data, f"{cat}: missing last_date"
+            assert "last_date_6m" in data, f"{cat}: missing last_date_6m"
+            assert "last_date_12m" in data, f"{cat}: missing last_date_12m"
+            assert "last_date_24m" in data, f"{cat}: missing last_date_24m"
 
     def test_summary_totals_match_episodes(self):
         """Sum of all category totals should equal len(overdue_episodes)."""
