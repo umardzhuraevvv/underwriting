@@ -169,11 +169,13 @@ def _worst_decision(a: str | None, b: str | None) -> str:
 
 
 def _calc_overdue_decision_for_category(cat: str | None, overdue_date: date | None,
-                                         rules: dict, reasons: list, prefix: str) -> tuple[str, float]:
-    """Calculate overdue decision for a single overdue category. Returns (decision, pv_add)."""
+                                         rules: dict, reasons: list, prefix: str) -> tuple[str, float, bool]:
+    """Calculate overdue decision for a single overdue category. Returns (decision, pv_add, requires_guarantor)."""
     decision = "approved"
     pv_add = 0.0
     months = _months_since(overdue_date)
+
+    requires_guarantor = False
 
     if cat and cat != "до 30 дней":
         if cat == "31-60":
@@ -187,15 +189,17 @@ def _calc_overdue_decision_for_category(cat: str | None, overdue_date: date | No
                 pv_add += rules.get("overdue_31_60_near_to_far_pv_add", 5)
                 reasons.append(f"{prefix}Просрочка 31-60, давность {months} мес ({near}–{far}) — {_decision_ru(decision)}, ПВ +{rules.get('overdue_31_60_near_to_far_pv_add', 5)}%")
             else:
-                decision = rules.get("overdue_31_60_gt_far_result", "approved")
-                pv_add += rules.get("overdue_31_60_gt_far_pv_add", 5)
+                # Документ: 31-60 > 12 мес → одобрено без ПВ
+                decision = "approved"
                 m_str = f"{months} мес" if months is not None else "нет даты"
-                reasons.append(f"{prefix}Просрочка 31-60, давность {m_str} > {far} мес — {_decision_ru(decision)}, ПВ +{rules.get('overdue_31_60_gt_far_pv_add', 5)}%")
+                reasons.append(f"{prefix}Просрочка 31-60, давность {m_str} > {far} мес — одобрено")
         elif cat == "61-90":
             threshold = rules.get("overdue_61_90_threshold", 12)
             if months is not None and months > threshold:
-                decision = rules.get("overdue_61_90_gt_result", "review")
-                reasons.append(f"{prefix}Просрочка 61-90, давность {months} мес > {threshold} мес — {_decision_ru(decision)}")
+                # Документ: 61-90 > 12 мес → одобрено + ПВ +10%
+                decision = "approved"
+                pv_add += 10
+                reasons.append(f"{prefix}Просрочка 61-90, давность {months} мес > {threshold} мес — одобрено, ПВ +10%")
             else:
                 decision = rules.get("overdue_61_90_lte_result", "rejected")
                 m_str = f"{months} мес" if months is not None else "нет даты"
@@ -203,8 +207,11 @@ def _calc_overdue_decision_for_category(cat: str | None, overdue_date: date | No
         elif cat == "90+":
             threshold = rules.get("overdue_90plus_threshold", 24)
             if months is not None and months > threshold:
-                decision = rules.get("overdue_90plus_gt_result", "review")
-                reasons.append(f"{prefix}Просрочка 90+, давность {months} мес > {threshold} мес — {_decision_ru(decision)}")
+                # Документ: 90+ > 24 мес → на рассмотрение + ПВ +20% + обязательный поручитель
+                decision = "review"
+                pv_add += 20
+                requires_guarantor = True
+                reasons.append(f"{prefix}Просрочка 90+, давность {months} мес > {threshold} мес — на рассмотрение, ПВ +20%, обязательный поручитель")
             else:
                 decision = rules.get("overdue_90plus_lte_result", "rejected")
                 m_str = f"{months} мес" if months is not None else "нет даты"
@@ -213,7 +220,7 @@ def _calc_overdue_decision_for_category(cat: str | None, overdue_date: date | No
         decision = rules.get("overdue_30_result", "approved")
         reasons.append(f"{prefix}Просрочка до 30 дней — {_decision_ru(decision)}")
 
-    return decision, pv_add
+    return decision, pv_add, requires_guarantor
 
 
 def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = None) -> dict:
@@ -246,29 +253,33 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
     # --- Overdue check ---
     is_legal = getattr(anketa, 'client_type', None) == "legal_entity"
 
+    requires_guarantor = False
+
     if is_legal:
         # For legal entities: check company, director, guarantor overdue separately
         # then take worst decision of all three
         overdue_decision = "approved"
 
         # Company overdue
-        comp_decision, comp_pv = _calc_overdue_decision_for_category(
+        comp_decision, comp_pv, comp_guar = _calc_overdue_decision_for_category(
             anketa.company_overdue_category, anketa.company_last_overdue_date,
             rules, reasons, "[Компания] "
         )
         pv_add += comp_pv
+        requires_guarantor = requires_guarantor or comp_guar
         overdue_decision = _worst_decision(overdue_decision, comp_decision)
 
         # Director overdue
-        dir_decision, dir_pv = _calc_overdue_decision_for_category(
+        dir_decision, dir_pv, dir_guar = _calc_overdue_decision_for_category(
             anketa.director_overdue_category, anketa.director_last_overdue_date,
             rules, reasons, "[Директор] "
         )
         pv_add += dir_pv
+        requires_guarantor = requires_guarantor or dir_guar
         overdue_decision = _worst_decision(overdue_decision, dir_decision)
 
         # Guarantor overdue
-        guar_decision, guar_pv = _calc_overdue_decision_for_category(
+        guar_decision, guar_pv, guar_guar = _calc_overdue_decision_for_category(
             anketa.guarantor_overdue_category, anketa.guarantor_last_overdue_date,
             rules, reasons, "[Поручитель] "
         )
@@ -276,48 +287,13 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
         overdue_decision = _worst_decision(overdue_decision, guar_decision)
 
     else:
-        # Individual: existing logic
-        overdue_decision = "approved"
-        cat = anketa.overdue_category
-        months = _months_since(anketa.last_overdue_date)
-
-        if cat and cat != "до 30 дней":
-            if cat == "31-60":
-                near = rules.get("overdue_31_60_threshold_near", 6)
-                far = rules.get("overdue_31_60_threshold_far", 12)
-                if months is not None and months < near:
-                    overdue_decision = rules.get("overdue_31_60_lt_near_result", "rejected")
-                    reasons.append(f"Просрочка 31-60, давность {months} мес < {near} мес — {_decision_ru(overdue_decision)}")
-                elif months is not None and months <= far:
-                    overdue_decision = rules.get("overdue_31_60_near_to_far_result", "review")
-                    pv_add += rules.get("overdue_31_60_near_to_far_pv_add", 5)
-                    reasons.append(f"Просрочка 31-60, давность {months} мес ({near}–{far}) — {_decision_ru(overdue_decision)}, ПВ +{rules.get('overdue_31_60_near_to_far_pv_add', 5)}%")
-                else:
-                    overdue_decision = rules.get("overdue_31_60_gt_far_result", "approved")
-                    pv_add += rules.get("overdue_31_60_gt_far_pv_add", 5)
-                    m_str = f"{months} мес" if months is not None else "нет даты"
-                    reasons.append(f"Просрочка 31-60, давность {m_str} > {far} мес — {_decision_ru(overdue_decision)}, ПВ +{rules.get('overdue_31_60_gt_far_pv_add', 5)}%")
-            elif cat == "61-90":
-                threshold = rules.get("overdue_61_90_threshold", 12)
-                if months is not None and months > threshold:
-                    overdue_decision = rules.get("overdue_61_90_gt_result", "review")
-                    reasons.append(f"Просрочка 61-90, давность {months} мес > {threshold} мес — {_decision_ru(overdue_decision)}")
-                else:
-                    overdue_decision = rules.get("overdue_61_90_lte_result", "rejected")
-                    m_str = f"{months} мес" if months is not None else "нет даты"
-                    reasons.append(f"Просрочка 61-90, давность {m_str} ≤ {threshold} мес — {_decision_ru(overdue_decision)}")
-            elif cat == "90+":
-                threshold = rules.get("overdue_90plus_threshold", 24)
-                if months is not None and months > threshold:
-                    overdue_decision = rules.get("overdue_90plus_gt_result", "review")
-                    reasons.append(f"Просрочка 90+, давность {months} мес > {threshold} мес — {_decision_ru(overdue_decision)}")
-                else:
-                    overdue_decision = rules.get("overdue_90plus_lte_result", "rejected")
-                    m_str = f"{months} мес" if months is not None else "нет даты"
-                    reasons.append(f"Просрочка 90+, давность {m_str} ≤ {threshold} мес — {_decision_ru(overdue_decision)}")
-        elif cat == "до 30 дней":
-            overdue_decision = rules.get("overdue_30_result", "approved")
-            reasons.append(f"Просрочка до 30 дней — {_decision_ru(overdue_decision)}")
+        # Individual: use same function
+        overdue_decision, ind_pv, ind_guar = _calc_overdue_decision_for_category(
+            anketa.overdue_category, anketa.last_overdue_date,
+            rules, reasons, ""
+        )
+        pv_add += ind_pv
+        requires_guarantor = requires_guarantor or ind_guar
 
     # --- Current overdue: auto reject ---
     current_overdue_decision = "approved"
@@ -333,36 +309,72 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
         reasons.append(f"Систематическая просрочка (3+ эпизодов 31+ дней за 12 мес) — {_decision_ru(systematic_decision)}")
 
     # --- Credit report: worst active classification ---
+    # Документ: если по действующим обязательствам классификация ниже "Стандартный" → отказ
     classification_decision = "approved"
     worst_class = getattr(anketa, 'worst_active_classification', None)
-    if worst_class:
-        BAD_CLASSES = {"Сомнительный", "Shubhali", "Безнадежный", "Umidsiz", "Qoniqarsiz"}
-        WARN_CLASSES = {"Субстандартный", "Substandart"}
-        if worst_class in BAD_CLASSES:
-            classification_decision = rules.get("bad_classification_result", "rejected")
-            add = rules.get("bad_classification_pv_add", 10)
-            pv_add += add
-            reasons.append(f"Класс качества активов: {worst_class} — {_decision_ru(classification_decision)}, ПВ +{add}%")
-        elif worst_class in WARN_CLASSES:
-            classification_decision = rules.get("warn_classification_result", "review")
-            add = rules.get("warn_classification_pv_add", 5)
-            pv_add += add
-            reasons.append(f"Класс качества активов: {worst_class} — {_decision_ru(classification_decision)}, ПВ +{add}%")
+    STANDARD_CLASSES = {"Стандартный", "Standart", "Standard", "н/д", None}
+    if worst_class and worst_class not in STANDARD_CLASSES:
+        classification_decision = "rejected"
+        reasons.append(f"Класс активов (действующие): {worst_class} — отказ")
+
+    # --- Credit report: worst closed classification ---
+    # Документ: если по закрытым обязательствам ниже "Субстандартный" → отказ
+    closed_classification_decision = "approved"
+    closed_class = getattr(anketa, 'worst_closed_classification', None)
+    CLOSED_OK_CLASSES = {"Стандартный", "Standart", "Standard", "Субстандартный", "Substandart", "н/д", None}
+    if closed_class and closed_class not in CLOSED_OK_CLASSES:
+        closed_classification_decision = "rejected"
+        reasons.append(f"Класс активов (закрытые): {closed_class} — отказ")
 
     # --- Credit report: lombard ---
+    # Документ: наличие ломбардных обязательств → автоматический отказ
     lombard_decision = "approved"
     if getattr(anketa, 'has_lombard', False):
-        lombard_decision = rules.get("lombard_result", "review")
-        add = rules.get("lombard_pv_add", 5)
-        pv_add += add
-        reasons.append(f"Ломбардные обязательства — {_decision_ru(lombard_decision)}, ПВ +{add}%")
+        lombard_decision = "rejected"
+        reasons.append("Ломбардные обязательства — отказ")
+
+    # --- Scoring class D/E → auto reject ---
+    scoring_class_decision = "approved"
+    sc = getattr(anketa, 'scoring_class', None)
+    if sc and sc.upper() in ("D", "E"):
+        scoring_class_decision = "rejected"
+        reasons.append(f"Скоринговый класс {sc.upper()} — отказ")
+
+    # --- Age check 21-65 ---
+    age_decision = "approved"
+    bd = getattr(anketa, 'birth_date', None)
+    if bd:
+        try:
+            if isinstance(bd, str):
+                bd = date.fromisoformat(bd)
+            today = date.today()
+            age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+            if age < 21:
+                age_decision = "rejected"
+                reasons.append(f"Возраст {age} лет < 21 — отказ")
+            elif age > 65:
+                age_decision = "rejected"
+                reasons.append(f"Возраст {age} лет > 65 — отказ")
+        except (ValueError, TypeError):
+            pass
+
+    # --- Open applications in last 10 days ---
+    open_apps_decision = "approved"
+    open_apps_count = getattr(anketa, 'open_applications_count', None)
+    if open_apps_count and open_apps_count > 0:
+        open_apps_decision = "review"
+        reasons.append(f"Открытые заявки за 10 дней: {open_apps_count} — на рассмотрение")
 
     # --- Final decision = worst of all checks ---
     final = _worst_decision(dti_decision, overdue_decision)
     final = _worst_decision(final, current_overdue_decision)
     final = _worst_decision(final, systematic_decision)
     final = _worst_decision(final, classification_decision)
+    final = _worst_decision(final, closed_classification_decision)
     final = _worst_decision(final, lombard_decision)
+    final = _worst_decision(final, scoring_class_decision)
+    final = _worst_decision(final, age_decision)
+    final = _worst_decision(final, open_apps_decision)
 
     # --- Recommended PV ---
     base_pv = rules.get("min_pv_percent", 5)
@@ -417,4 +429,5 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
         "recommended_pv": round(recommended_pv, 1),
         "dti_suggestion_pv": dti_suggestion_pv,
         "dti_suggestion_price": dti_suggestion_price,
+        "requires_guarantor": requires_guarantor,
     }

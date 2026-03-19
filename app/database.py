@@ -142,8 +142,11 @@ class Anketa(Base):
     # Credit report parser v2 fields
     systematic_overdue = Column(Boolean, default=False)
     worst_active_classification = Column(String(50))
+    worst_closed_classification = Column(String(50))
     has_lombard = Column(Boolean, default=False)
     current_overdue_amount = Column(Float)
+    scoring_class = Column(String(10))
+    open_applications_count = Column(Integer)
 
     # ===== LEGAL ENTITY FIELDS =====
     # Company info
@@ -348,8 +351,11 @@ def init_db():
         for col_name, col_def in [
             ("systematic_overdue", "BOOLEAN DEFAULT FALSE"),
             ("worst_active_classification", "VARCHAR(50)"),
+            ("worst_closed_classification", "VARCHAR(50)"),
             ("has_lombard", "BOOLEAN DEFAULT FALSE"),
             ("current_overdue_amount", "FLOAT"),
+            ("scoring_class", "VARCHAR(10)"),
+            ("open_applications_count", "INTEGER"),
         ]:
             try:
                 conn.execute(text(f"ALTER TABLE anketas ADD COLUMN {col_name} {col_def}"))

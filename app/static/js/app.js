@@ -938,7 +938,8 @@ const anketaFields = [
   'max_continuous_overdue_percent_days', 'max_overdue_percent_amount',
   'overdue_category', 'last_overdue_date', 'overdue_reason',
   'risk_grade', 'no_scoring_response',
-  'systematic_overdue', 'worst_active_classification', 'has_lombard', 'current_overdue_amount',
+  'systematic_overdue', 'worst_active_classification', 'worst_closed_classification', 'has_lombard',
+  'current_overdue_amount', 'scoring_class', 'open_applications_count',
 ];
 
 const leFields = [
@@ -1235,6 +1236,12 @@ function fillAnketaForm(data) {
     if (leHasLombard) leHasLombard.value = data.has_lombard === true ? 'true' : data.has_lombard === false ? 'false' : '';
     const leCurOverdue = document.getElementById('f-le-current_overdue_amount');
     if (leCurOverdue) leCurOverdue.value = data.current_overdue_amount != null ? data.current_overdue_amount : '';
+    const leWorstClosed = document.getElementById('f-le-worst_closed_classification');
+    if (leWorstClosed) leWorstClosed.value = data.worst_closed_classification || '';
+    const leScoringClass = document.getElementById('f-le-scoring_class');
+    if (leScoringClass) leScoringClass.value = data.scoring_class || '';
+    const leOpenApps = document.getElementById('f-le-open_applications_count');
+    if (leOpenApps) leOpenApps.value = data.open_applications_count != null ? data.open_applications_count : '';
   } else {
     _currentClientType = 'individual';
     selectClientType('individual');
@@ -1312,6 +1319,7 @@ const floatFields = new Set([
 const intFields = new Set([
   'car_year', 'mileage', 'lease_term_months', 'obligations_count', 'closed_obligations_count',
   'max_overdue_principal_days', 'max_continuous_overdue_percent_days',
+  'open_applications_count',
 ]);
 
 function collectAnketaData() {
@@ -1382,6 +1390,12 @@ function collectAnketaData() {
     if (leHasLombard && leHasLombard.value) data.has_lombard = leHasLombard.value === 'true';
     const leCurOverdue = document.getElementById('f-le-current_overdue_amount');
     if (leCurOverdue && leCurOverdue.value) data.current_overdue_amount = parseFloat(leCurOverdue.value) || null;
+    const leWorstClosed = document.getElementById('f-le-worst_closed_classification');
+    if (leWorstClosed && leWorstClosed.value) data.worst_closed_classification = leWorstClosed.value;
+    const leScoringClass = document.getElementById('f-le-scoring_class');
+    if (leScoringClass && leScoringClass.value) data.scoring_class = leScoringClass.value;
+    const leOpenApps = document.getElementById('f-le-open_applications_count');
+    if (leOpenApps && leOpenApps.value) data.open_applications_count = parseInt(leOpenApps.value) || null;
   } else {
     data.client_type = 'individual';
   }
@@ -2313,6 +2327,12 @@ function applyKatmData(data, isLegalEntity) {
     if (hasLombard) hasLombard.value = data.has_lombard ? 'true' : 'false';
     const curOverdue = document.getElementById('f-le-current_overdue_amount');
     if (curOverdue) curOverdue.value = data.current_overdue_amount || '';
+    const worstClosed = document.getElementById('f-le-worst_closed_classification');
+    if (worstClosed) worstClosed.value = data.worst_closed_classification || '';
+    const scoringClass = document.getElementById('f-le-scoring_class');
+    if (scoringClass) scoringClass.value = data.scoring_class || '';
+    const openApps = document.getElementById('f-le-open_applications_count');
+    if (openApps) openApps.value = (data.open_applications || []).length || '';
   } else {
     // Individual fields
     setField('f-has_current_obligations', data.has_current_obligations);
@@ -2336,6 +2356,12 @@ function applyKatmData(data, isLegalEntity) {
     if (hasLombard) hasLombard.value = data.has_lombard ? 'true' : 'false';
     const curOverdue = document.getElementById('f-current_overdue_amount');
     if (curOverdue) curOverdue.value = data.current_overdue_amount || '';
+    const worstClosed = document.getElementById('f-worst_closed_classification');
+    if (worstClosed) worstClosed.value = data.worst_closed_classification || '';
+    const scoringClass = document.getElementById('f-scoring_class');
+    if (scoringClass) scoringClass.value = data.scoring_class || '';
+    const openApps = document.getElementById('f-open_applications_count');
+    if (openApps) openApps.value = (data.open_applications || []).length || '';
   }
 }
 
@@ -3458,19 +3484,9 @@ function calcRecommendedPV() {
     if (rule && rule.min_pv > basePV) basePV = rule.min_pv;
   }
 
-  // PV additions from credit report signals
-  let pvAdd = 0;
-  const worstClassEl = document.getElementById(prefix + 'worst_active_classification') || document.getElementById('f-worst_active_classification');
-  const worstClass = (worstClassEl?.value || '').trim();
-  const BAD_CLASSES = ['Сомнительный', 'Shubhali', 'Безнадежный', 'Umidsiz', 'Qoniqarsiz'];
-  const WARN_CLASSES = ['Субстандартный', 'Substandart'];
-  if (BAD_CLASSES.includes(worstClass)) pvAdd += 10;
-  else if (WARN_CLASSES.includes(worstClass)) pvAdd += 5;
-
-  const lombardEl = document.getElementById(prefix + 'has_lombard') || document.getElementById('f-has_lombard');
-  if (lombardEl?.value === 'true') pvAdd += 5;
-
-  return basePV + pvAdd;
+  // PV additions: classification and lombard are now hard rejects (no PV add)
+  // Only overdue-based PV additions remain (computed server-side in verdict)
+  return basePV;
 }
 
 function checkRiskGradePV() {

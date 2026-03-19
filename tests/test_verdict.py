@@ -101,9 +101,11 @@ class TestVerdictOverdue:
         assert result["auto_decision"] == "rejected", f"61-90, 6 мес (≤12) → rejected, получили {result['auto_decision']}"
 
     def test_verdict_overdue_61_90_old(self, default_rules):
+        """61-90, давность > 12 мес → approved + ПВ +10% (по документу)."""
         a = _make_anketa(dti=30, overdue_category="61-90", last_overdue_date=_months_ago(15))
         result = calc_auto_verdict(a, default_rules)
-        assert result["auto_decision"] == "review", f"61-90, 15 мес (>12) → review, получили {result['auto_decision']}"
+        assert result["auto_decision"] == "approved", f"61-90, 15 мес (>12) → approved, получили {result['auto_decision']}"
+        assert result["recommended_pv"] >= 15  # base 5 + 10
 
     def test_verdict_overdue_90plus_recent(self, default_rules):
         a = _make_anketa(dti=30, overdue_category="90+", last_overdue_date=_months_ago(12))
@@ -111,9 +113,12 @@ class TestVerdictOverdue:
         assert result["auto_decision"] == "rejected", f"90+, 12 мес (≤24) → rejected, получили {result['auto_decision']}"
 
     def test_verdict_overdue_90plus_old(self, default_rules):
+        """90+, давность > 24 мес → review + ПВ +20% + requires_guarantor (по документу)."""
         a = _make_anketa(dti=30, overdue_category="90+", last_overdue_date=_months_ago(30))
         result = calc_auto_verdict(a, default_rules)
         assert result["auto_decision"] == "review", f"90+, 30 мес (>24) → review, получили {result['auto_decision']}"
+        assert result["recommended_pv"] >= 25  # base 5 + 20
+        assert result["requires_guarantor"] is True
 
 
 # ===== Комбинированные тесты =====
@@ -121,10 +126,10 @@ class TestVerdictOverdue:
 class TestVerdictCombined:
 
     def test_verdict_worst_decision(self, default_rules):
-        """DTI=approved + overdue=review → final=review."""
-        a = _make_anketa(dti=30, overdue_category="61-90", last_overdue_date=_months_ago(15))
+        """DTI=review + overdue=approved → final=review."""
+        a = _make_anketa(dti=55, overdue_category="до 30 дней")
         result = calc_auto_verdict(a, default_rules)
-        assert result["auto_decision"] == "review", f"DTI approved + overdue review → review, получили {result['auto_decision']}"
+        assert result["auto_decision"] == "review", f"DTI review + overdue approved → review, получили {result['auto_decision']}"
 
     def test_verdict_recommended_pv(self, default_rules):
         """pv_add=5 от просрочки 31-60 medium → recommended = min_pv(5) + 5 = 10, ПВ 8 < 10."""
@@ -182,11 +187,10 @@ class TestVerdictCreditReport:
         assert result["auto_decision"] == "approved"
 
     def test_bad_classification_rejects(self, default_rules):
-        """worst_active_classification='Безнадежный' → rejected + ПВ +10."""
+        """worst_active_classification='Безнадежный' → rejected (по документу: ниже стандартного → отказ)."""
         a = _make_anketa(dti=40, worst_active_classification="Безнадежный")
         result = calc_auto_verdict(a, default_rules)
         assert result["auto_decision"] == "rejected"
-        assert result["recommended_pv"] >= 15  # min_pv(5) + 10
 
     def test_bad_classification_uzbek(self, default_rules):
         """worst_active_classification='Umidsiz' (узб.) → rejected."""
@@ -194,12 +198,11 @@ class TestVerdictCreditReport:
         result = calc_auto_verdict(a, default_rules)
         assert result["auto_decision"] == "rejected"
 
-    def test_warn_classification_review(self, default_rules):
-        """worst_active_classification='Субстандартный' → review + ПВ +5."""
+    def test_substandard_classification_rejects(self, default_rules):
+        """worst_active_classification='Субстандартный' → rejected (по документу: ниже стандартного → отказ)."""
         a = _make_anketa(dti=40, worst_active_classification="Субстандартный")
         result = calc_auto_verdict(a, default_rules)
-        assert result["auto_decision"] == "review"
-        assert result["recommended_pv"] >= 10  # min_pv(5) + 5
+        assert result["auto_decision"] == "rejected"
 
     def test_good_classification_no_effect(self, default_rules):
         """worst_active_classification='Стандартный' → не влияет."""
@@ -207,12 +210,11 @@ class TestVerdictCreditReport:
         result = calc_auto_verdict(a, default_rules)
         assert result["auto_decision"] == "approved"
 
-    def test_lombard_review(self, default_rules):
-        """has_lombard=True → review + ПВ +5."""
+    def test_lombard_rejects(self, default_rules):
+        """has_lombard=True → rejected (по документу: ломбард → отказ)."""
         a = _make_anketa(dti=40, has_lombard=True)
         result = calc_auto_verdict(a, default_rules)
-        assert result["auto_decision"] == "review"
-        assert result["recommended_pv"] >= 10
+        assert result["auto_decision"] == "rejected"
 
     def test_lombard_false_no_effect(self, default_rules):
         """has_lombard=False → не влияет."""
@@ -225,12 +227,6 @@ class TestVerdictCreditReport:
         a = _make_anketa(dti=55, systematic_overdue=True, has_lombard=True)
         result = calc_auto_verdict(a, default_rules)
         assert result["auto_decision"] == "rejected"
-
-    def test_combined_pv_accumulates(self, default_rules):
-        """Плохой класс (+10) + ломбард (+5) → ПВ = 5 + 10 + 5 = 20."""
-        a = _make_anketa(dti=40, worst_active_classification="Безнадежный", has_lombard=True, down_payment_percent=10)
-        result = calc_auto_verdict(a, default_rules)
-        assert result["recommended_pv"] == 20.0
 
 
 # ===== Тесты риск-грейд + ПВ =====
@@ -258,16 +254,18 @@ class TestVerdictRiskGradePV:
         assert result["recommended_pv"] == 25.0
 
     def test_grade_e_plus_lombard(self, default_rules):
-        """risk_grade=E (base 20) + lombard (+5) → recommended_pv = 25."""
+        """risk_grade=E (base 20) + lombard → rejected (lombard is hard reject now)."""
         a = _make_anketa(dti=40, risk_grade="E", has_lombard=True, down_payment_percent=10)
         result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
-        assert result["recommended_pv"] == 25.0
+        assert result["auto_decision"] == "rejected"
+        assert result["recommended_pv"] == 20.0  # No PV add from lombard
 
     def test_grade_e_plus_bad_classification(self, default_rules):
-        """risk_grade=E (base 20) + bad classification (+10) → recommended_pv = 30."""
+        """risk_grade=E (base 20) + bad classification → rejected (classification is hard reject now)."""
         a = _make_anketa(dti=40, risk_grade="E", worst_active_classification="Безнадежный", down_payment_percent=10)
         result = calc_auto_verdict(a, default_rules, risk_rules=self.RISK_RULES)
-        assert result["recommended_pv"] == 30.0
+        assert result["auto_decision"] == "rejected"
+        assert result["recommended_pv"] == 20.0  # No PV add from classification
 
     def test_no_grade_stays_base_5(self, default_rules):
         """Без risk_grade → базовый ПВ = 5%."""
@@ -330,3 +328,191 @@ class TestVerdictCurrentOverdue:
         result = calc_auto_verdict(a, default_rules)
         reasons = " ".join(result["auto_decision_reasons"])
         assert "1,500,000" in reasons
+
+
+# ===== Тесты скоринговый класс D/E =====
+
+class TestVerdictScoringClass:
+
+    def test_scoring_class_d_rejects(self, default_rules):
+        """scoring_class='D' → rejected."""
+        a = _make_anketa(dti=40, scoring_class="D")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+        reasons = " ".join(result["auto_decision_reasons"])
+        assert "Скоринговый класс D" in reasons
+
+    def test_scoring_class_e_rejects(self, default_rules):
+        """scoring_class='E' → rejected."""
+        a = _make_anketa(dti=40, scoring_class="E")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+
+    def test_scoring_class_c_no_effect(self, default_rules):
+        """scoring_class='C' → не влияет."""
+        a = _make_anketa(dti=40, scoring_class="C")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_scoring_class_none_no_effect(self, default_rules):
+        """scoring_class=None → не влияет."""
+        a = _make_anketa(dti=40, scoring_class=None)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+
+# ===== Тесты закрытая классификация =====
+
+class TestVerdictClosedClassification:
+
+    def test_closed_bad_rejects(self, default_rules):
+        """worst_closed_classification='Сомнительный' → rejected."""
+        a = _make_anketa(dti=40, worst_closed_classification="Сомнительный")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+        reasons = " ".join(result["auto_decision_reasons"])
+        assert "закрытые" in reasons
+
+    def test_closed_qoniqarsiz_rejects(self, default_rules):
+        """worst_closed_classification='Qoniqarsiz' → rejected."""
+        a = _make_anketa(dti=40, worst_closed_classification="Qoniqarsiz")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+
+    def test_closed_substandard_ok(self, default_rules):
+        """worst_closed_classification='Субстандартный' → OK (допустимо для закрытых)."""
+        a = _make_anketa(dti=40, worst_closed_classification="Субстандартный")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_closed_standard_ok(self, default_rules):
+        """worst_closed_classification='Стандартный' → OK."""
+        a = _make_anketa(dti=40, worst_closed_classification="Стандартный")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_closed_none_ok(self, default_rules):
+        """worst_closed_classification=None → OK."""
+        a = _make_anketa(dti=40, worst_closed_classification=None)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+
+# ===== Тесты возраста =====
+
+class TestVerdictAge:
+
+    def test_age_below_21_rejects(self, default_rules):
+        """Возраст 20 лет → rejected."""
+        young_date = date(date.today().year - 20, date.today().month, date.today().day)
+        a = _make_anketa(dti=40, birth_date=young_date)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+        reasons = " ".join(result["auto_decision_reasons"])
+        assert "Возраст" in reasons and "< 21" in reasons
+
+    def test_age_above_65_rejects(self, default_rules):
+        """Возраст 66 лет → rejected."""
+        old_date = date(date.today().year - 66, date.today().month, date.today().day)
+        a = _make_anketa(dti=40, birth_date=old_date)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "rejected"
+        reasons = " ".join(result["auto_decision_reasons"])
+        assert "Возраст" in reasons and "> 65" in reasons
+
+    def test_age_21_ok(self, default_rules):
+        """Возраст ровно 21 → approved."""
+        bd = date(date.today().year - 21, date.today().month, date.today().day)
+        a = _make_anketa(dti=40, birth_date=bd)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_age_65_ok(self, default_rules):
+        """Возраст ровно 65 → approved."""
+        bd = date(date.today().year - 65, date.today().month, date.today().day)
+        a = _make_anketa(dti=40, birth_date=bd)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_age_none_no_effect(self, default_rules):
+        """birth_date=None → не влияет."""
+        a = _make_anketa(dti=40, birth_date=None)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_age_string_date(self, default_rules):
+        """birth_date как строка '1980-01-15' → тоже работает."""
+        a = _make_anketa(dti=40, birth_date="1980-01-15")
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+
+# ===== Тесты открытых заявок =====
+
+class TestVerdictOpenApplications:
+
+    def test_open_apps_review(self, default_rules):
+        """open_applications_count > 0 → review."""
+        a = _make_anketa(dti=40, open_applications_count=3)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "review"
+        reasons = " ".join(result["auto_decision_reasons"])
+        assert "Открытые заявки" in reasons
+
+    def test_open_apps_zero_no_effect(self, default_rules):
+        """open_applications_count = 0 → не влияет."""
+        a = _make_anketa(dti=40, open_applications_count=0)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_open_apps_none_no_effect(self, default_rules):
+        """open_applications_count = None → не влияет."""
+        a = _make_anketa(dti=40, open_applications_count=None)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["auto_decision"] == "approved"
+
+
+# ===== Тесты requires_guarantor =====
+
+class TestVerdictGuarantor:
+
+    def test_90plus_old_requires_guarantor(self, default_rules):
+        """90+ давность >24м → requires_guarantor = True."""
+        a = _make_anketa(dti=30, overdue_category="90+", last_overdue_date=_months_ago(30))
+        result = calc_auto_verdict(a, default_rules)
+        assert result["requires_guarantor"] is True
+
+    def test_no_overdue_no_guarantor(self, default_rules):
+        """Без просрочки → requires_guarantor = False."""
+        a = _make_anketa(dti=40)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["requires_guarantor"] is False
+
+    def test_61_90_old_no_guarantor(self, default_rules):
+        """61-90 давность >12м → requires_guarantor = False."""
+        a = _make_anketa(dti=30, overdue_category="61-90", last_overdue_date=_months_ago(15))
+        result = calc_auto_verdict(a, default_rules)
+        assert result["requires_guarantor"] is False
+
+
+# ===== Тесты overdue PV additions по документу =====
+
+class TestVerdictOverduePV:
+
+    def test_31_60_old_no_pv(self, default_rules):
+        """31-60 > 12м → одобрено БЕЗ ПВ (по документу)."""
+        a = _make_anketa(dti=30, overdue_category="31-60", last_overdue_date=_months_ago(15), down_payment_percent=5)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["recommended_pv"] == 5.0  # Без надбавки
+
+    def test_61_90_old_pv_10(self, default_rules):
+        """61-90 > 12м → approved + ПВ +10%."""
+        a = _make_anketa(dti=30, overdue_category="61-90", last_overdue_date=_months_ago(15), down_payment_percent=5)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["recommended_pv"] == 15.0  # 5 + 10
+
+    def test_90plus_old_pv_20(self, default_rules):
+        """90+ > 24м → review + ПВ +20%."""
+        a = _make_anketa(dti=30, overdue_category="90+", last_overdue_date=_months_ago(30), down_payment_percent=5)
+        result = calc_auto_verdict(a, default_rules)
+        assert result["recommended_pv"] == 25.0  # 5 + 20

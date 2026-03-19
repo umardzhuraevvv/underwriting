@@ -130,8 +130,11 @@ class AnketaDetail(BaseModel):
     # Credit report parser v2 fields
     systematic_overdue: bool | None = None
     worst_active_classification: str | None = None
+    worst_closed_classification: str | None = None
     has_lombard: bool | None = None
     current_overdue_amount: float | None = None
+    scoring_class: str | None = None
+    open_applications_count: int | None = None
     # --- Legal entity: Company info ---
     company_name: str | None = None
     company_inn: str | None = None
@@ -344,8 +347,11 @@ class AnketaUpdate(BaseModel):
     # Credit report parser v2 fields
     systematic_overdue: bool | None = None
     worst_active_classification: CoerceStr = None
+    worst_closed_classification: CoerceStr = None
     has_lombard: bool | None = None
     current_overdue_amount: float | None = None
+    scoring_class: CoerceStr = None
+    open_applications_count: CoerceInt = None
     # --- Legal entity: Company info ---
     company_name: CoerceStr = None
     company_inn: CoerceStr = None
