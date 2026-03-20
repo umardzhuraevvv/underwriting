@@ -516,3 +516,59 @@ class TestVerdictOverduePV:
         a = _make_anketa(dti=30, overdue_category="90+", last_overdue_date=_months_ago(30), down_payment_percent=5)
         result = calc_auto_verdict(a, default_rules)
         assert result["recommended_pv"] == 25.0  # 5 + 20
+
+
+# ===== Тесты настраиваемости правил =====
+
+class TestVerdictConfigurableRules:
+    """Проверяем что решения читаются из rules, а не захардкожены."""
+
+    def test_lombard_from_rules(self, default_rules):
+        """lombard_result='review' → review (не rejected)."""
+        rules = {**default_rules, "lombard_result": "review"}
+        a = _make_anketa(dti=40, has_lombard=True)
+        result = calc_auto_verdict(a, rules)
+        assert result["auto_decision"] == "review"
+
+    def test_classification_from_rules(self, default_rules):
+        """bad_classification_result='review' → review (не rejected)."""
+        rules = {**default_rules, "bad_classification_result": "review"}
+        a = _make_anketa(dti=40, worst_active_classification="Безнадежный")
+        result = calc_auto_verdict(a, rules)
+        assert result["auto_decision"] == "review"
+
+    def test_closed_classification_from_rules(self, default_rules):
+        """closed_classification_result='review' → review (не rejected)."""
+        rules = {**default_rules, "closed_classification_result": "review"}
+        a = _make_anketa(dti=40, worst_closed_classification="Сомнительный")
+        result = calc_auto_verdict(a, rules)
+        assert result["auto_decision"] == "review"
+
+    def test_scoring_class_from_rules(self, default_rules):
+        """scoring_class_de_result='review' → review (не rejected)."""
+        rules = {**default_rules, "scoring_class_de_result": "review"}
+        a = _make_anketa(dti=40, scoring_class="D")
+        result = calc_auto_verdict(a, rules)
+        assert result["auto_decision"] == "review"
+
+    def test_current_overdue_from_rules(self, default_rules):
+        """current_overdue_result='review' → review (не rejected)."""
+        rules = {**default_rules, "current_overdue_result": "review"}
+        a = _make_anketa(dti=40, current_overdue_amount=500000)
+        result = calc_auto_verdict(a, rules)
+        assert result["auto_decision"] == "review"
+
+    def test_age_bounds_from_rules(self, default_rules):
+        """min_age=18, max_age=70 → возраст 19 одобрен (было бы rejected при 21)."""
+        rules = {**default_rules, "min_age": 18, "max_age": 70}
+        young_date = date(date.today().year - 19, date.today().month, date.today().day)
+        a = _make_anketa(dti=40, birth_date=young_date)
+        result = calc_auto_verdict(a, rules)
+        assert result["auto_decision"] == "approved"
+
+    def test_open_apps_from_rules(self, default_rules):
+        """open_apps_result='rejected' → rejected (не review)."""
+        rules = {**default_rules, "open_apps_result": "rejected"}
+        a = _make_anketa(dti=40, open_applications_count=3)
+        result = calc_auto_verdict(a, rules)
+        assert result["auto_decision"] == "rejected"

@@ -299,8 +299,8 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
     current_overdue_decision = "approved"
     current_overdue_amt = getattr(anketa, 'current_overdue_amount', None)
     if current_overdue_amt and current_overdue_amt > 0:
-        current_overdue_decision = "rejected"
-        reasons.append(f"Текущая просрочка {current_overdue_amt:,.0f} сум — отказ до погашения")
+        current_overdue_decision = rules.get("current_overdue_result", "rejected")
+        reasons.append(f"Текущая просрочка {current_overdue_amt:,.0f} сум — {_decision_ru(current_overdue_decision)}")
 
     # --- Credit report: systematic overdue ---
     systematic_decision = "approved"
@@ -314,8 +314,8 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
     worst_class = getattr(anketa, 'worst_active_classification', None)
     STANDARD_CLASSES = {"Стандартный", "Standart", "Standard", "н/д", None}
     if worst_class and worst_class not in STANDARD_CLASSES:
-        classification_decision = "rejected"
-        reasons.append(f"Класс активов (действующие): {worst_class} — отказ")
+        classification_decision = rules.get("bad_classification_result", "rejected")
+        reasons.append(f"Класс активов (действующие): {worst_class} — {_decision_ru(classification_decision)}")
 
     # --- Credit report: worst closed classification ---
     # Документ: если по закрытым обязательствам ниже "Субстандартный" → отказ
@@ -323,24 +323,26 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
     closed_class = getattr(anketa, 'worst_closed_classification', None)
     CLOSED_OK_CLASSES = {"Стандартный", "Standart", "Standard", "Субстандартный", "Substandart", "н/д", None}
     if closed_class and closed_class not in CLOSED_OK_CLASSES:
-        closed_classification_decision = "rejected"
-        reasons.append(f"Класс активов (закрытые): {closed_class} — отказ")
+        closed_classification_decision = rules.get("closed_classification_result", "rejected")
+        reasons.append(f"Класс активов (закрытые): {closed_class} — {_decision_ru(closed_classification_decision)}")
 
     # --- Credit report: lombard ---
     # Документ: наличие ломбардных обязательств → автоматический отказ
     lombard_decision = "approved"
     if getattr(anketa, 'has_lombard', False):
-        lombard_decision = "rejected"
-        reasons.append("Ломбардные обязательства — отказ")
+        lombard_decision = rules.get("lombard_result", "rejected")
+        reasons.append(f"Ломбардные обязательства — {_decision_ru(lombard_decision)}")
 
     # --- Scoring class D/E → auto reject ---
     scoring_class_decision = "approved"
     sc = getattr(anketa, 'scoring_class', None)
     if sc and sc.upper() in ("D", "E"):
-        scoring_class_decision = "rejected"
-        reasons.append(f"Скоринговый класс {sc.upper()} — отказ")
+        scoring_class_decision = rules.get("scoring_class_de_result", "rejected")
+        reasons.append(f"Скоринговый класс {sc.upper()} — {_decision_ru(scoring_class_decision)}")
 
-    # --- Age check 21-65 ---
+    # --- Age check ---
+    min_age = rules.get("min_age", 21)
+    max_age = rules.get("max_age", 65)
     age_decision = "approved"
     bd = getattr(anketa, 'birth_date', None)
     if bd:
@@ -349,12 +351,12 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
                 bd = date.fromisoformat(bd)
             today = date.today()
             age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
-            if age < 21:
+            if age < min_age:
                 age_decision = "rejected"
-                reasons.append(f"Возраст {age} лет < 21 — отказ")
-            elif age > 65:
+                reasons.append(f"Возраст {age} лет < {min_age} — отказ")
+            elif age > max_age:
                 age_decision = "rejected"
-                reasons.append(f"Возраст {age} лет > 65 — отказ")
+                reasons.append(f"Возраст {age} лет > {max_age} — отказ")
         except (ValueError, TypeError):
             pass
 
@@ -362,8 +364,8 @@ def calc_auto_verdict(anketa: Anketa, rules: dict, risk_rules: list | None = Non
     open_apps_decision = "approved"
     open_apps_count = getattr(anketa, 'open_applications_count', None)
     if open_apps_count and open_apps_count > 0:
-        open_apps_decision = "review"
-        reasons.append(f"Открытые заявки за 10 дней: {open_apps_count} — на рассмотрение")
+        open_apps_decision = rules.get("open_apps_result", "review")
+        reasons.append(f"Открытые заявки за 10 дней: {open_apps_count} — {_decision_ru(open_apps_decision)}")
 
     # --- Final decision = worst of all checks ---
     final = _worst_decision(dti_decision, overdue_decision)

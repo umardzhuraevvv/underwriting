@@ -123,8 +123,14 @@ def _seed_rules(db_session):
         {"category": "credit_report", "rule_key": "bad_classification_pv_add", "value": "10", "label": "Плохой класс качества: ПВ +%", "value_type": "float"},
         {"category": "credit_report", "rule_key": "warn_classification_result", "value": "review", "label": "Субстандартный класс: решение", "value_type": "string"},
         {"category": "credit_report", "rule_key": "warn_classification_pv_add", "value": "5", "label": "Субстандартный класс: ПВ +%", "value_type": "float"},
-        {"category": "credit_report", "rule_key": "lombard_result", "value": "review", "label": "Ломбард: решение", "value_type": "string"},
+        {"category": "credit_report", "rule_key": "lombard_result", "value": "rejected", "label": "Ломбард: решение", "value_type": "string"},
         {"category": "credit_report", "rule_key": "lombard_pv_add", "value": "5", "label": "Ломбард: ПВ +%", "value_type": "float"},
+        {"category": "credit_report", "rule_key": "closed_classification_result", "value": "rejected", "label": "Закрытые ниже Субстандартного: решение", "value_type": "string"},
+        {"category": "credit_report", "rule_key": "scoring_class_de_result", "value": "rejected", "label": "Скоринговый класс D/E: решение", "value_type": "string"},
+        {"category": "credit_report", "rule_key": "current_overdue_result", "value": "rejected", "label": "Текущая просрочка: решение", "value_type": "string"},
+        {"category": "client", "rule_key": "min_age", "value": "21", "label": "Мин. возраст заёмщика", "value_type": "int"},
+        {"category": "client", "rule_key": "max_age", "value": "65", "label": "Макс. возраст заёмщика", "value_type": "int"},
+        {"category": "client", "rule_key": "open_apps_result", "value": "review", "label": "Открытые заявки за 10 дней: решение", "value_type": "string"},
     ]
     for r in default_rules:
         db_session.add(UnderwritingRule(**r))
@@ -214,8 +220,14 @@ def default_rules():
         "bad_classification_pv_add": 10.0,
         "warn_classification_result": "review",
         "warn_classification_pv_add": 5.0,
-        "lombard_result": "review",
+        "lombard_result": "rejected",
         "lombard_pv_add": 5.0,
+        "closed_classification_result": "rejected",
+        "scoring_class_de_result": "rejected",
+        "current_overdue_result": "rejected",
+        "min_age": 21,
+        "max_age": 65,
+        "open_apps_result": "review",
     }
 
 

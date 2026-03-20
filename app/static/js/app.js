@@ -3004,8 +3004,10 @@ function renderRules() {
     dti: 'DTI (долговая нагрузка)',
     pv: 'Первоначальный взнос (ПВ)',
     overdue: 'Просрочки',
+    credit_report: 'Кредитная история (КАТМ)',
+    client: 'Клиент',
   };
-  const categoryOrder = ['dti', 'pv', 'overdue'];
+  const categoryOrder = ['dti', 'pv', 'overdue', 'credit_report', 'client'];
 
   // Group rules by category
   const groups = {};

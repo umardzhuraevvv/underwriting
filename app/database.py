@@ -469,24 +469,37 @@ def init_db():
                 {"category": "credit_report", "rule_key": "bad_classification_pv_add", "value": "10", "label": "Плохой класс качества: ПВ +%", "value_type": "float"},
                 {"category": "credit_report", "rule_key": "warn_classification_result", "value": "review", "label": "Субстандартный класс: решение", "value_type": "string"},
                 {"category": "credit_report", "rule_key": "warn_classification_pv_add", "value": "5", "label": "Субстандартный класс: ПВ +%", "value_type": "float"},
-                {"category": "credit_report", "rule_key": "lombard_result", "value": "review", "label": "Ломбард: решение", "value_type": "string"},
+                {"category": "credit_report", "rule_key": "lombard_result", "value": "rejected", "label": "Ломбард: решение", "value_type": "string"},
                 {"category": "credit_report", "rule_key": "lombard_pv_add", "value": "5", "label": "Ломбард: ПВ +%", "value_type": "float"},
+                {"category": "credit_report", "rule_key": "closed_classification_result", "value": "rejected", "label": "Закрытые ниже Субстандартного: решение", "value_type": "string"},
+                {"category": "credit_report", "rule_key": "scoring_class_de_result", "value": "rejected", "label": "Скоринговый класс D/E: решение", "value_type": "string"},
+                {"category": "credit_report", "rule_key": "current_overdue_result", "value": "rejected", "label": "Текущая просрочка: решение", "value_type": "string"},
+                # Client
+                {"category": "client", "rule_key": "min_age", "value": "21", "label": "Мин. возраст заёмщика", "value_type": "int"},
+                {"category": "client", "rule_key": "max_age", "value": "65", "label": "Макс. возраст заёмщика", "value_type": "int"},
+                {"category": "client", "rule_key": "open_apps_result", "value": "review", "label": "Открытые заявки за 10 дней: решение", "value_type": "string"},
             ]
             for r in default_rules:
                 db.add(UnderwritingRule(**r))
             db.commit()
 
-        # Seed missing credit_report rules (for existing installations)
-        cr_rules = [
+        # Seed missing rules (for existing installations)
+        new_rules = [
             {"category": "credit_report", "rule_key": "systematic_overdue_result", "value": "rejected", "label": "Систематическая просрочка: решение", "value_type": "string"},
             {"category": "credit_report", "rule_key": "bad_classification_result", "value": "rejected", "label": "Плохой класс качества: решение", "value_type": "string"},
             {"category": "credit_report", "rule_key": "bad_classification_pv_add", "value": "10", "label": "Плохой класс качества: ПВ +%", "value_type": "float"},
             {"category": "credit_report", "rule_key": "warn_classification_result", "value": "review", "label": "Субстандартный класс: решение", "value_type": "string"},
             {"category": "credit_report", "rule_key": "warn_classification_pv_add", "value": "5", "label": "Субстандартный класс: ПВ +%", "value_type": "float"},
-            {"category": "credit_report", "rule_key": "lombard_result", "value": "review", "label": "Ломбард: решение", "value_type": "string"},
+            {"category": "credit_report", "rule_key": "lombard_result", "value": "rejected", "label": "Ломбард: решение", "value_type": "string"},
             {"category": "credit_report", "rule_key": "lombard_pv_add", "value": "5", "label": "Ломбард: ПВ +%", "value_type": "float"},
+            {"category": "credit_report", "rule_key": "closed_classification_result", "value": "rejected", "label": "Закрытые ниже Субстандартного: решение", "value_type": "string"},
+            {"category": "credit_report", "rule_key": "scoring_class_de_result", "value": "rejected", "label": "Скоринговый класс D/E: решение", "value_type": "string"},
+            {"category": "credit_report", "rule_key": "current_overdue_result", "value": "rejected", "label": "Текущая просрочка: решение", "value_type": "string"},
+            {"category": "client", "rule_key": "min_age", "value": "21", "label": "Мин. возраст заёмщика", "value_type": "int"},
+            {"category": "client", "rule_key": "max_age", "value": "65", "label": "Макс. возраст заёмщика", "value_type": "int"},
+            {"category": "client", "rule_key": "open_apps_result", "value": "review", "label": "Открытые заявки за 10 дней: решение", "value_type": "string"},
         ]
-        for r in cr_rules:
+        for r in new_rules:
             exists = db.query(UnderwritingRule).filter(UnderwritingRule.rule_key == r["rule_key"]).first()
             if not exists:
                 db.add(UnderwritingRule(**r))
