@@ -2,7 +2,7 @@ import hashlib
 import json
 import os
 import secrets
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
@@ -238,15 +238,7 @@ def check_duplicate_field(db: Session, field: str, value: str, exclude_id: int |
     if exclude_id:
         base_q = base_q.filter(Anketa.id != exclude_id)
 
-    if field == "pinfl" and len(value) == 14:
-        matches = base_q.filter(Anketa.pinfl == value).all()
-    elif field == "passport_series":
-        passport_norm = value.replace(" ", "")
-        matches = []
-        for m in base_q.filter(Anketa.passport_series.isnot(None)).all():
-            if m.passport_series and m.passport_series.replace(" ", "") == passport_norm:
-                matches.append(m)
-    elif field == "phone_numbers":
+    if field == "phone_numbers":
         phone_norm = _normalize_phone(value)
         if len(phone_norm) < 9:
             return []
@@ -260,8 +252,6 @@ def check_duplicate_field(db: Session, field: str, value: str, exclude_id: int |
         matches = []
 
     field_labels = {
-        "pinfl": "ПИНФЛ",
-        "passport_series": "Паспорт",
         "phone_numbers": "Телефон",
         "company_inn": "ИНН",
     }
@@ -442,7 +432,7 @@ def apply_conclusion(db: Session, anketa: Anketa, decision: str, comment: str | 
     anketa.decision = decision
     anketa.conclusion_comment = comment
     anketa.concluded_by = user.id
-    anketa.concluded_at = datetime.utcnow()
+    anketa.concluded_at = datetime.now(timezone.utc)
     anketa.status = decision
 
     decision_labels = {

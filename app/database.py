@@ -454,13 +454,15 @@ def init_db():
                 {"category": "overdue", "rule_key": "overdue_31_60_near_to_far_result", "value": "review", "label": "31-60, между порогами: решение", "value_type": "string"},
                 {"category": "overdue", "rule_key": "overdue_31_60_near_to_far_pv_add", "value": "5", "label": "31-60, между порогами: ПВ +%", "value_type": "float"},
                 {"category": "overdue", "rule_key": "overdue_31_60_gt_far_result", "value": "approved", "label": "31-60, более порога (дальн.): решение", "value_type": "string"},
-                {"category": "overdue", "rule_key": "overdue_31_60_gt_far_pv_add", "value": "5", "label": "31-60, более порога (дальн.): ПВ +%", "value_type": "float"},
+                {"category": "overdue", "rule_key": "overdue_31_60_gt_far_pv_add", "value": "0", "label": "31-60, более порога (дальн.): ПВ +%", "value_type": "float"},
                 {"category": "overdue", "rule_key": "overdue_31_60_threshold_near", "value": "6", "label": "31-60: ближний порог (мес)", "value_type": "int"},
                 {"category": "overdue", "rule_key": "overdue_31_60_threshold_far", "value": "12", "label": "31-60: дальний порог (мес)", "value_type": "int"},
-                {"category": "overdue", "rule_key": "overdue_61_90_gt_result", "value": "review", "label": "61-90, более порога: решение", "value_type": "string"},
+                {"category": "overdue", "rule_key": "overdue_61_90_gt_result", "value": "approved", "label": "61-90, более порога: решение", "value_type": "string"},
+                {"category": "overdue", "rule_key": "overdue_61_90_gt_pv_add", "value": "10", "label": "61-90, более порога: ПВ +%", "value_type": "float"},
                 {"category": "overdue", "rule_key": "overdue_61_90_lte_result", "value": "rejected", "label": "61-90, до порога: решение", "value_type": "string"},
                 {"category": "overdue", "rule_key": "overdue_61_90_threshold", "value": "12", "label": "61-90: порог (мес)", "value_type": "int"},
                 {"category": "overdue", "rule_key": "overdue_90plus_gt_result", "value": "review", "label": "90+, более порога: решение", "value_type": "string"},
+                {"category": "overdue", "rule_key": "overdue_90plus_gt_pv_add", "value": "20", "label": "90+, более порога: ПВ +%", "value_type": "float"},
                 {"category": "overdue", "rule_key": "overdue_90plus_lte_result", "value": "rejected", "label": "90+, до порога: решение", "value_type": "string"},
                 {"category": "overdue", "rule_key": "overdue_90plus_threshold", "value": "24", "label": "90+: порог (мес)", "value_type": "int"},
                 # Credit report
@@ -485,6 +487,9 @@ def init_db():
 
         # Seed missing rules (for existing installations)
         new_rules = [
+            {"category": "overdue", "rule_key": "overdue_31_60_gt_far_pv_add", "value": "0", "label": "31-60, более порога (дальн.): ПВ +%", "value_type": "float"},
+            {"category": "overdue", "rule_key": "overdue_61_90_gt_pv_add", "value": "10", "label": "61-90, более порога: ПВ +%", "value_type": "float"},
+            {"category": "overdue", "rule_key": "overdue_90plus_gt_pv_add", "value": "20", "label": "90+, более порога: ПВ +%", "value_type": "float"},
             {"category": "credit_report", "rule_key": "systematic_overdue_result", "value": "rejected", "label": "Систематическая просрочка: решение", "value_type": "string"},
             {"category": "credit_report", "rule_key": "bad_classification_result", "value": "rejected", "label": "Плохой класс качества: решение", "value_type": "string"},
             {"category": "credit_report", "rule_key": "bad_classification_pv_add", "value": "10", "label": "Плохой класс качества: ПВ +%", "value_type": "float"},

@@ -1,5 +1,5 @@
 import io
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -488,7 +488,7 @@ def review_edit_request(
     req.status = body.status
     req.reviewed_by = admin.id
     req.review_comment = body.comment
-    req.reviewed_at = datetime.utcnow()
+    req.reviewed_at = datetime.now(timezone.utc)
 
     from app.routers.anketa import create_notification
     status_label = "одобрен" if body.status == "approved" else "отклонён"

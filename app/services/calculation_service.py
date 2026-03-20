@@ -17,21 +17,21 @@ def _decision_ru(d: str) -> str:
 
 def calc_annuity(principal: float, annual_rate: float, months: int) -> float:
     """Calculate annuity monthly payment."""
-    if not principal or not annual_rate or not months:
+    if not principal or not months:
         return 0.0
-    r = annual_rate / 100 / 12
-    if r == 0:
+    if not annual_rate:
         return principal / months
+    r = annual_rate / 100 / 12
     return principal * (r * (1 + r) ** months) / ((1 + r) ** months - 1)
 
 
 def calc_max_principal(annual_rate: float, months: int, max_payment: float) -> float:
     """Inverse annuity: max loan principal for a given max monthly payment."""
-    if not annual_rate or not months or max_payment <= 0:
+    if not months or max_payment <= 0:
         return 0.0
-    r = annual_rate / 100 / 12
-    if r == 0:
+    if not annual_rate:
         return max_payment * months
+    r = annual_rate / 100 / 12
     return max_payment * ((1 + r) ** months - 1) / (r * (1 + r) ** months)
 
 
@@ -155,7 +155,10 @@ def _months_since(d: date | None) -> int | None:
     if not d:
         return None
     today = date.today()
-    return (today.year - d.year) * 12 + (today.month - d.month)
+    months = (today.year - d.year) * 12 + (today.month - d.month)
+    if today.day < d.day:
+        months -= 1
+    return max(months, 0)
 
 
 def _worst_decision(a: str | None, b: str | None) -> str:
@@ -190,16 +193,17 @@ def _calc_overdue_decision_for_category(cat: str | None, overdue_date: date | No
                 reasons.append(f"{prefix}Просрочка 31-60, давность {months} мес ({near}–{far}) — {_decision_ru(decision)}, ПВ +{rules.get('overdue_31_60_near_to_far_pv_add', 5)}%")
             else:
                 # Документ: 31-60 > 12 мес → одобрено без ПВ
-                decision = "approved"
+                decision = rules.get("overdue_31_60_gt_far_result", "approved")
+                pv_add += rules.get("overdue_31_60_gt_far_pv_add", 0)
                 m_str = f"{months} мес" if months is not None else "нет даты"
-                reasons.append(f"{prefix}Просрочка 31-60, давность {m_str} > {far} мес — одобрено")
+                reasons.append(f"{prefix}Просрочка 31-60, давность {m_str} > {far} мес — {_decision_ru(decision)}")
         elif cat == "61-90":
             threshold = rules.get("overdue_61_90_threshold", 12)
             if months is not None and months > threshold:
                 # Документ: 61-90 > 12 мес → одобрено + ПВ +10%
-                decision = "approved"
-                pv_add += 10
-                reasons.append(f"{prefix}Просрочка 61-90, давность {months} мес > {threshold} мес — одобрено, ПВ +10%")
+                decision = rules.get("overdue_61_90_gt_result", "approved")
+                pv_add += rules.get("overdue_61_90_gt_pv_add", 10)
+                reasons.append(f"{prefix}Просрочка 61-90, давность {months} мес > {threshold} мес — {_decision_ru(decision)}, ПВ +{rules.get('overdue_61_90_gt_pv_add', 10):.0f}%")
             else:
                 decision = rules.get("overdue_61_90_lte_result", "rejected")
                 m_str = f"{months} мес" if months is not None else "нет даты"
@@ -208,10 +212,10 @@ def _calc_overdue_decision_for_category(cat: str | None, overdue_date: date | No
             threshold = rules.get("overdue_90plus_threshold", 24)
             if months is not None and months > threshold:
                 # Документ: 90+ > 24 мес → на рассмотрение + ПВ +20% + обязательный поручитель
-                decision = "review"
-                pv_add += 20
+                decision = rules.get("overdue_90plus_gt_result", "review")
+                pv_add += rules.get("overdue_90plus_gt_pv_add", 20)
                 requires_guarantor = True
-                reasons.append(f"{prefix}Просрочка 90+, давность {months} мес > {threshold} мес — на рассмотрение, ПВ +20%, обязательный поручитель")
+                reasons.append(f"{prefix}Просрочка 90+, давность {months} мес > {threshold} мес — {_decision_ru(decision)}, ПВ +{rules.get('overdue_90plus_gt_pv_add', 20):.0f}%, обязательный поручитель")
             else:
                 decision = rules.get("overdue_90plus_lte_result", "rejected")
                 m_str = f"{months} мес" if months is not None else "нет даты"

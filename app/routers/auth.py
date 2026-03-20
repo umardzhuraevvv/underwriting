@@ -11,8 +11,6 @@ from app.schemas import LoginRequest
 
 logger = logging.getLogger("app")
 
-logger = logging.getLogger("app")
-
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
 

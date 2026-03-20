@@ -22,7 +22,7 @@ def _create_anketa(db, user_id, status="approved", dti=45.0, price=5_000_000):
 class TestMonthlyTrend:
 
     def test_returns_200_and_list(self, client, admin_headers, seeded_db):
-        resp = client.get("/api/anketas/analytics/monthly-trend", headers=admin_headers)
+        resp = client.get("/api/v1/anketas/analytics/monthly-trend", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -31,7 +31,7 @@ class TestMonthlyTrend:
         db = seeded_db["session"]
         _create_anketa(db, seeded_db["admin"].id)
 
-        resp = client.get("/api/anketas/analytics/monthly-trend", headers=admin_headers)
+        resp = client.get("/api/v1/anketas/analytics/monthly-trend", headers=admin_headers)
         data = resp.json()
         assert len(data) >= 1
         item = data[0]
@@ -42,14 +42,14 @@ class TestMonthlyTrend:
         assert "review" in item
 
     def test_forbidden_without_analytics_view(self, client, inspector_headers, seeded_db):
-        resp = client.get("/api/anketas/analytics/monthly-trend", headers=inspector_headers)
+        resp = client.get("/api/v1/anketas/analytics/monthly-trend", headers=inspector_headers)
         assert resp.status_code == 403
 
 
 class TestDtiDistribution:
 
     def test_returns_200_and_list(self, client, admin_headers, seeded_db):
-        resp = client.get("/api/anketas/analytics/dti-distribution", headers=admin_headers)
+        resp = client.get("/api/v1/anketas/analytics/dti-distribution", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -60,20 +60,20 @@ class TestDtiDistribution:
         _create_anketa(db, seeded_db["admin"].id, status="saved", dti=25.0)
         _create_anketa(db, seeded_db["admin"].id, status="saved", dti=55.0)
 
-        resp = client.get("/api/anketas/analytics/dti-distribution", headers=admin_headers)
+        resp = client.get("/api/v1/anketas/analytics/dti-distribution", headers=admin_headers)
         data = resp.json()
         ranges = [d["range"] for d in data]
         assert ranges == ["0-30%", "30-50%", "50-60%", "60%+"]
 
     def test_forbidden_without_analytics_view(self, client, inspector_headers, seeded_db):
-        resp = client.get("/api/anketas/analytics/dti-distribution", headers=inspector_headers)
+        resp = client.get("/api/v1/anketas/analytics/dti-distribution", headers=inspector_headers)
         assert resp.status_code == 403
 
 
 class TestInspectorStats:
 
     def test_returns_200_and_list(self, client, admin_headers, seeded_db):
-        resp = client.get("/api/anketas/analytics/inspector-stats", headers=admin_headers)
+        resp = client.get("/api/v1/anketas/analytics/inspector-stats", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -82,7 +82,7 @@ class TestInspectorStats:
         db = seeded_db["session"]
         _create_anketa(db, seeded_db["admin"].id)
 
-        resp = client.get("/api/anketas/analytics/inspector-stats", headers=admin_headers)
+        resp = client.get("/api/v1/anketas/analytics/inspector-stats", headers=admin_headers)
         data = resp.json()
         assert len(data) >= 1
         item = data[0]
@@ -92,14 +92,14 @@ class TestInspectorStats:
         assert "avg_dti" in item
 
     def test_forbidden_without_analytics_view(self, client, inspector_headers, seeded_db):
-        resp = client.get("/api/anketas/analytics/inspector-stats", headers=inspector_headers)
+        resp = client.get("/api/v1/anketas/analytics/inspector-stats", headers=inspector_headers)
         assert resp.status_code == 403
 
 
 class TestAmountTrend:
 
     def test_returns_200_and_list(self, client, admin_headers, seeded_db):
-        resp = client.get("/api/anketas/analytics/amount-trend", headers=admin_headers)
+        resp = client.get("/api/v1/anketas/analytics/amount-trend", headers=admin_headers)
         assert resp.status_code == 200
         data = resp.json()
         assert isinstance(data, list)
@@ -108,7 +108,7 @@ class TestAmountTrend:
         db = seeded_db["session"]
         _create_anketa(db, seeded_db["admin"].id, price=10_000_000)
 
-        resp = client.get("/api/anketas/analytics/amount-trend", headers=admin_headers)
+        resp = client.get("/api/v1/anketas/analytics/amount-trend", headers=admin_headers)
         data = resp.json()
         assert len(data) >= 1
         item = data[0]
@@ -116,5 +116,5 @@ class TestAmountTrend:
         assert "avg_amount" in item
 
     def test_forbidden_without_analytics_view(self, client, inspector_headers, seeded_db):
-        resp = client.get("/api/anketas/analytics/amount-trend", headers=inspector_headers)
+        resp = client.get("/api/v1/anketas/analytics/amount-trend", headers=inspector_headers)
         assert resp.status_code == 403

@@ -2,7 +2,7 @@ import hashlib
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 
@@ -533,7 +533,7 @@ def delete_anketa(
         anketa.pinfl_hash = hashlib.sha256((salt + anketa.pinfl).encode()).hexdigest()
 
     anketa.status = "deleted"
-    anketa.deleted_at = datetime.utcnow()
+    anketa.deleted_at = datetime.now(timezone.utc)
     anketa.deleted_by = user.id
     anketa.deletion_reason = reason
 

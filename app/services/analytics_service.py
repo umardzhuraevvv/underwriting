@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 from sqlalchemy import func as sa_func, extract, case
@@ -11,7 +11,7 @@ def get_stats_data(db: Session, user: User, period: str,
                    date_from: str | None, date_to: str | None,
                    client_type: str | None) -> dict:
     """Get anketa statistics for the dashboard funnel."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if period == "week":
         start = now - timedelta(days=7)
         end = now
@@ -58,7 +58,7 @@ def get_analytics_data(db: Session, user: User, period: str,
                        date_from: str | None, date_to: str | None,
                        client_type: str | None) -> dict:
     """Extended analytics: approval rate, avg DTI, trend, risk distribution."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     if period == "week":
         current_start = now - timedelta(days=7)
@@ -161,7 +161,7 @@ def get_employee_stats_data(db: Session, user: User, period: str,
     """Get per-employee stats: total, approved, rejected, review, approval_rate, avg_dti, avg_processing_hours."""
     perms = get_user_permissions(user, db)
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     if period == "week":
         start = now - timedelta(days=7)
         end = now
@@ -235,7 +235,7 @@ def get_employee_stats_data(db: Session, user: User, period: str,
 
 def get_monthly_trend(db: Session) -> list[dict]:
     """Тренд анкет по месяцам (последние 12 месяцев)."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start = datetime(now.year, now.month, 1) - timedelta(days=365)
 
     rows = (
@@ -323,7 +323,7 @@ def get_inspector_stats(db: Session) -> list[dict]:
 
 def get_avg_amount_trend(db: Session) -> list[dict]:
     """Средняя сумма лизинга по месяцам (последние 12 месяцев)."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     start = datetime(now.year, now.month, 1) - timedelta(days=365)
 
     rows = (

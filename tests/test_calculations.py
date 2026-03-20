@@ -29,7 +29,7 @@ class TestCalcAnnuity:
 
     def test_annuity_zero_rate(self):
         result = calc_annuity(1_200_000, 0, 12)
-        assert result == 0.0, "При нулевой ставке и проверке `not annual_rate` должен вернуть 0.0"
+        assert result == 100_000.0, "При нулевой ставке: principal / months = 100000"
 
     def test_annuity_zero_principal(self):
         result = calc_annuity(0, 24, 12)
@@ -37,7 +37,7 @@ class TestCalcAnnuity:
 
     def test_annuity_none_values(self):
         assert calc_annuity(None, 24, 12) == 0.0, "None principal → 0.0"
-        assert calc_annuity(1_000_000, None, 12) == 0.0, "None rate → 0.0"
+        assert abs(calc_annuity(1_000_000, None, 12) - 83_333.33) < 1, "None rate → principal/months"
         assert calc_annuity(1_000_000, 24, None) == 0.0, "None months → 0.0"
         assert calc_annuity(1_000_000, 24, 0) == 0.0, "0 months → 0.0"
 
