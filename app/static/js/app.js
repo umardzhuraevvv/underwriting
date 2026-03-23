@@ -4533,8 +4533,7 @@ function renderAnalytics(data) {
     _renderSparkline('sparkRejected', trend.map(t => Math.max(0, t.total - t.approved)), '#EF4444');
   }
 
-  // Trend chart
-  const trend = data.trend || [];
+  // Trend chart (reuses `trend` from above)
   const maxTotal = Math.max(...trend.map(t => t.total), 1);
   const barsHtml = trend.map(t => {
     const totalH = Math.round((t.total / maxTotal) * 120);
