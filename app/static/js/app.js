@@ -2816,62 +2816,73 @@ async function loadDashboardStats() {
 function renderDashboard(stats) {
   const rejected = stats.rejected_underwriter + stats.rejected_client;
 
-  // Stat cards with icons
+  // Yandex-style stat cards with sparklines
   const cardsHtml = `
     <div class="stat-card" onclick="navigate('ankety')">
-      <div class="stat-icon stat-icon-purple">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
+      <div class="stat-card-header">
+        <span class="stat-card-title">Всего анкет</span>
+        <span class="stat-card-link">Отчёт &#9654;</span>
       </div>
-      <div class="stat-info">
-        <div class="stat-label">Всего анкет</div>
-        <div class="stat-value">${stats.total}</div>
-        <div class="stat-sub">За выбранный период</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="navigate('ankety')">
-      <div class="stat-icon stat-icon-green">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-          <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-      </div>
-      <div class="stat-info">
-        <div class="stat-label">Одобрено</div>
-        <div class="stat-value" style="color:var(--green)">${stats.approved}</div>
-        <div class="stat-sub">Решение: одобрено</div>
+      <div class="stat-card-body">
+        <div class="stat-card-left">
+          <div class="stat-value">${stats.total}</div>
+          <div class="stat-sub-items">
+            <div class="stat-sub-item">Сохранённые <span>${stats.saved}</span></div>
+            <div class="stat-sub-item">Черновики <span>${stats.draft || 0}</span></div>
+          </div>
+        </div>
+        <div class="stat-card-right"><canvas id="sparkTotal"></canvas></div>
       </div>
     </div>
     <div class="stat-card" onclick="navigate('ankety')">
-      <div class="stat-icon stat-icon-yellow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
+      <div class="stat-card-header">
+        <span class="stat-card-title">Одобрено</span>
+        <span class="stat-card-link">Отчёт &#9654;</span>
       </div>
-      <div class="stat-info">
-        <div class="stat-label">На рассмотрении</div>
-        <div class="stat-value" style="color:var(--yellow)">${stats.review + stats.saved}</div>
-        <div class="stat-sub">Сохранённые + на рассмотр.</div>
+      <div class="stat-card-body">
+        <div class="stat-card-left">
+          <div class="stat-value-row">
+            <div class="stat-value" style="color:var(--green)">${stats.approved}</div>
+            <span class="stat-pct-trend" id="approvedPctTrend"></span>
+          </div>
+          <div class="stat-sub">Решение: одобрено</div>
+        </div>
+        <div class="stat-card-right"><canvas id="sparkApproved"></canvas></div>
       </div>
     </div>
     <div class="stat-card" onclick="navigate('ankety')">
-      <div class="stat-icon stat-icon-red">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
+      <div class="stat-card-header">
+        <span class="stat-card-title">На рассмотрении</span>
+        <span class="stat-card-link">Отчёт &#9654;</span>
       </div>
-      <div class="stat-info">
-        <div class="stat-label">Отказано</div>
-        <div class="stat-value" style="color:var(--red)">${rejected}</div>
-        <div class="stat-sub">Андерр. ${stats.rejected_underwriter} / Клиент ${stats.rejected_client}</div>
+      <div class="stat-card-body">
+        <div class="stat-card-left">
+          <div class="stat-value" style="color:var(--yellow)">${stats.review + stats.saved}</div>
+          <div class="stat-sub-items">
+            <div class="stat-sub-item">Review <span>${stats.review}</span></div>
+            <div class="stat-sub-item">Saved <span>${stats.saved}</span></div>
+          </div>
+        </div>
+        <div class="stat-card-right"><canvas id="sparkReview"></canvas></div>
+      </div>
+    </div>
+    <div class="stat-card" onclick="navigate('ankety')">
+      <div class="stat-card-header">
+        <span class="stat-card-title">Отказано</span>
+        <span class="stat-card-link">Отчёт &#9654;</span>
+      </div>
+      <div class="stat-card-body">
+        <div class="stat-card-left">
+          <div class="stat-value-row">
+            <div class="stat-value" style="color:var(--red)">${rejected}</div>
+            <span class="stat-pct-trend" id="rejectedPctTrend"></span>
+          </div>
+          <div class="stat-sub-items">
+            <div class="stat-sub-item">Андеррайтер <span>${stats.rejected_underwriter}</span></div>
+            <div class="stat-sub-item">Клиент <span>${stats.rejected_client}</span></div>
+          </div>
+        </div>
+        <div class="stat-card-right"><canvas id="sparkRejected"></canvas></div>
       </div>
     </div>
   `;
@@ -4427,23 +4438,100 @@ function deltaHtml(val, invert) {
   return `<div class="stat-trend ${cls}">${arrow} ${Math.abs(val).toFixed(1)}</div>`;
 }
 
+function _pctTrendHtml(val, invert) {
+  if (val === 0 || val === null || val === undefined) return '';
+  const positive = invert ? val < 0 : val > 0;
+  const arrow = positive ? '\u2191' : '\u2193';
+  const cls = positive ? 'up' : 'down';
+  return `<span class="stat-pct-trend ${cls}">${positive ? '+' : ''}${val.toFixed(1)}%${arrow}</span>`;
+}
+
+function _renderSparkline(canvasId, dataPoints, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.clientWidth || 100;
+  const h = canvas.parentElement.clientHeight || 50;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+
+  const pts = dataPoints.length ? dataPoints : [0];
+  const max = Math.max(...pts, 1);
+  const min = Math.min(...pts, 0);
+  const range = max - min || 1;
+  const pad = 2;
+
+  // Draw filled area + line
+  ctx.beginPath();
+  pts.forEach((v, i) => {
+    const x = pad + (i / (pts.length - 1 || 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  // Fill area under the line
+  const lastX = pad + ((pts.length - 1) / (pts.length - 1 || 1)) * (w - pad * 2);
+  ctx.lineTo(lastX, h);
+  ctx.lineTo(pad, h);
+  ctx.closePath();
+  ctx.fillStyle = color + '18';
+  ctx.fill();
+
+  // Stroke line
+  ctx.beginPath();
+  pts.forEach((v, i) => {
+    const x = pad + (i / (pts.length - 1 || 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.stroke();
+}
+
 function renderAnalytics(data) {
-  // Analytics cards
+  // Analytics cards (Yandex-style with trend)
   const approvalDelta = data.approval_rate - data.prev_approval_rate;
   const dtiDelta = data.avg_dti - data.prev_avg_dti;
 
   document.getElementById('analyticsCards').innerHTML = `
-    <div class="stat-card">
-      <div class="stat-label">% одобрения</div>
-      <div class="stat-value" style="font-size:24px">${data.approval_rate.toFixed(1)}%</div>
+    <div class="stat-card" style="cursor:default">
+      <div class="stat-card-header">
+        <span class="stat-card-title">% одобрения</span>
+      </div>
+      <div class="stat-value-row">
+        <div class="stat-value" style="font-size:28px">${data.approval_rate.toFixed(1)}%</div>
+        ${_pctTrendHtml(approvalDelta, false)}
+      </div>
       ${deltaHtml(approvalDelta, false)}
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Средний DTI</div>
-      <div class="stat-value" style="font-size:24px">${data.avg_dti.toFixed(1)}%</div>
+    <div class="stat-card" style="cursor:default">
+      <div class="stat-card-header">
+        <span class="stat-card-title">Средний DTI</span>
+      </div>
+      <div class="stat-value-row">
+        <div class="stat-value" style="font-size:28px">${data.avg_dti.toFixed(1)}%</div>
+        ${_pctTrendHtml(dtiDelta, true)}
+      </div>
       ${deltaHtml(dtiDelta, true)}
     </div>
   `;
+
+  // Render sparklines on dashboard stat cards
+  const trend = data.trend || [];
+  if (trend.length > 1) {
+    _renderSparkline('sparkTotal', trend.map(t => t.total), '#3B82F6');
+    _renderSparkline('sparkApproved', trend.map(t => t.approved), '#22C55E');
+    // Estimate review/rejected from totals (rough sparkline)
+    _renderSparkline('sparkReview', trend.map(t => Math.max(0, t.total - t.approved)), '#F59E0B');
+    _renderSparkline('sparkRejected', trend.map(t => Math.max(0, t.total - t.approved)), '#EF4444');
+  }
 
   // Trend chart
   const trend = data.trend || [];
