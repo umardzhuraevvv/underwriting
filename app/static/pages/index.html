@@ -67,13 +67,9 @@
     </a>
 
     <div class="nav-section" style="margin-top:8px" id="adminSection">Система</div>
-    <a class="nav-item" data-page="users" data-tooltip="Пользователи" onclick="navigate('users')" id="usersNavItem">
+    <a class="nav-item" data-page="access" data-tooltip="Управление доступом" onclick="navigate('access')" id="usersNavItem">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      <span class="nav-label">Пользователи</span>
-    </a>
-    <a class="nav-item" data-page="roles" data-tooltip="Должности" onclick="navigate('roles')" id="rolesNavItem">
-      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 1 5 5v1a5 5 0 0 1-10 0V7a5 5 0 0 1 5-5z"/><path d="M20 21v-1a7 7 0 0 0-8-6.93"/><path d="M4 21v-1a7 7 0 0 1 6-6.93"/></svg>
-      <span class="nav-label">Должности</span>
+      <span class="nav-label">Управление доступом</span>
     </a>
     <a class="nav-item" data-page="rules" data-tooltip="Правила" onclick="navigate('rules')" id="rulesNavItem">
       <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
@@ -1365,37 +1361,77 @@
     </div>
   </div>
 
-  <!-- ROLES PAGE -->
-  <div class="page" id="page-roles">
+  <!-- ACCESS MANAGEMENT PAGE (Yandex-style) -->
+  <div class="page" id="page-access">
     <div class="topbar">
-      <div class="page-title">Должности</div>
-      <div class="topbar-actions">
-        <button class="btn btn-primary" onclick="openCreateRoleModal()">+ Новая должность</button>
+      <div class="page-title">Управление доступом</div>
+      <div class="topbar-actions" id="accessTopbarActions">
+        <!-- Dynamic buttons rendered by JS -->
       </div>
     </div>
     <div class="content">
-      <div class="card">
-        <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Название</th>
-              <th>Создание анкет</th>
-              <th>Редактиров.</th>
-              <th>Просмотр всех</th>
-              <th>Заключение</th>
-              <th>Удаление</th>
-              <th>Управл. польз.</th>
-              <th>Аналитика</th>
-              <th>Excel</th>
-              <th>Правила</th>
-              <th>Действия</th>
-            </tr>
-          </thead>
-          <tbody id="rolesTableBody">
-            <tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
-          </tbody>
-        </table>
+      <!-- Tabs: Пользователи / Роли -->
+      <div class="access-tabs">
+        <button class="access-tab active" onclick="switchAccessTab('users')" id="accessTabUsers">Пользователи</button>
+        <button class="access-tab" onclick="switchAccessTab('roles')" id="accessTabRoles">Роли</button>
+      </div>
+
+      <!-- Users tab content -->
+      <div class="access-tab-content active" id="accessContentUsers">
+        <div class="card">
+          <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Пользователь</th>
+                <th>Email</th>
+                <th>Роль</th>
+                <th>Статус</th>
+                <th class="col-hide-mobile">Создан</th>
+                <th>Действия</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
+            </tbody>
+          </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Roles tab content: 3-column layout -->
+      <div class="access-tab-content" id="accessContentRoles">
+        <div class="roles-three-col">
+          <!-- Column 1: Role list -->
+          <div class="roles-col roles-col-list">
+            <div class="roles-col-header">
+              <span>Роль</span>
+              <button class="btn btn-sm btn-primary" onclick="openCreateRoleModal()" title="Новая роль">+</button>
+            </div>
+            <div class="roles-list" id="rolesListCol">
+              <div class="roles-list-empty">Загрузка...</div>
+            </div>
+          </div>
+          <!-- Column 2: Sections -->
+          <div class="roles-col roles-col-sections">
+            <div class="roles-col-header"><span>Раздел</span></div>
+            <div class="roles-sections" id="rolesSectionsCol">
+              <div class="roles-list-empty">Выберите роль</div>
+            </div>
+          </div>
+          <!-- Column 3: Permissions -->
+          <div class="roles-col roles-col-perms">
+            <div class="roles-col-header">
+              <span>Что можно сделать</span>
+              <div class="roles-col-actions" id="rolesColActions" style="display:none">
+                <button class="btn btn-sm btn-outline" onclick="toggleEditRoleInline()" id="roleEditToggleBtn">Редактировать</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteSelectedRole()" id="roleDeleteBtn">Удалить</button>
+              </div>
+            </div>
+            <div class="roles-perms" id="rolesPermsCol">
+              <div class="roles-list-empty">Выберите раздел</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1444,44 +1480,7 @@
     </div>
   </div>
 
-  <!-- USERS / ADMIN PAGE -->
-  <div class="page" id="page-users">
-    <div class="topbar">
-      <div class="page-title">Пользователи</div>
-      <div class="topbar-actions">
-        <button class="btn btn-outline" onclick="openTelegramSettingsModal()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2L9 14"/><path d="M21 2l-7 20-4-9-9-4z"/></svg>
-          Telegram
-        </button>
-        <button class="btn btn-outline" onclick="openExcelExportModal()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Скачать Excel
-        </button>
-        <button class="btn btn-primary" onclick="openCreateUserModal()">+ Новый пользователь</button>
-      </div>
-    </div>
-    <div class="content">
-      <div class="card">
-        <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Пользователь</th>
-              <th>Email</th>
-              <th>Роль</th>
-              <th>Статус</th>
-              <th class="col-hide-mobile">Создан</th>
-              <th>Действия</th>
-            </tr>
-          </thead>
-          <tbody id="usersTableBody">
-            <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-light)">Загрузка...</td></tr>
-          </tbody>
-        </table>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- OLD USERS PAGE REMOVED — merged into access page above -->
 
   <!-- EDIT REQUEST MODAL -->
   <div class="modal-overlay" id="editRequestModal">
@@ -1684,9 +1683,9 @@
 
 <!-- CREATE ROLE MODAL -->
 <div class="modal-overlay" id="createRoleModal">
-  <div class="modal" style="max-width:480px">
+  <div class="modal" style="max-width:400px">
     <div class="modal-header">
-      <div class="modal-title">Новая должность</div>
+      <div class="modal-title">Новая роль</div>
       <button class="modal-close" onclick="closeCreateRoleModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -1695,60 +1694,10 @@
         <label class="form-label">Название <span class="required">*</span></label>
         <input class="form-input" id="newRoleName" placeholder="Напр.: Наблюдатель">
       </div>
-      <div class="form-group">
-        <label class="form-label" style="margin-bottom:8px">Права доступа</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_create"> Создание анкет</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_edit"> Редактирование</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_view_all"> Просмотр всех</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_conclude"> Заключение</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_anketa_delete"> Удаление анкет</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_user_manage"> Управл. пользователями</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_analytics_view"> Аналитика</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_export_excel"> Экспорт Excel</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="newRolePerm_rules_manage"> Управл. правилами</label>
-        </div>
-      </div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-outline" onclick="closeCreateRoleModal()">Отмена</button>
       <button class="btn btn-primary" onclick="createRole()" id="createRoleBtn">Создать</button>
-    </div>
-  </div>
-</div>
-
-<!-- EDIT ROLE MODAL -->
-<div class="modal-overlay" id="editRoleModal">
-  <div class="modal" style="max-width:480px">
-    <div class="modal-header">
-      <div class="modal-title">Редактировать должность</div>
-      <button class="modal-close" onclick="closeEditRoleModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <div id="editRoleError" class="login-error" style="margin-bottom:16px"></div>
-      <input type="hidden" id="editRoleId">
-      <div class="form-group">
-        <label class="form-label">Название <span class="required">*</span></label>
-        <input class="form-input" id="editRoleName">
-      </div>
-      <div class="form-group">
-        <label class="form-label" style="margin-bottom:8px">Права доступа</label>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_create"> Создание анкет</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_edit"> Редактирование</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_view_all"> Просмотр всех</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_conclude"> Заключение</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_anketa_delete"> Удаление анкет</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_user_manage"> Управл. пользователями</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_analytics_view"> Аналитика</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_export_excel"> Экспорт Excel</label>
-          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" id="editRolePerm_rules_manage"> Управл. правилами</label>
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-outline" onclick="closeEditRoleModal()">Отмена</button>
-      <button class="btn btn-primary" onclick="saveRole()" id="saveRoleBtn">Сохранить</button>
     </div>
   </div>
 </div>
