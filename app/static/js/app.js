@@ -381,13 +381,14 @@ function navigate(page, data) {
 
   // Load page data
   if (page === 'dashboard') loadDashboardStats();
-  if (page === 'users') loadUsers();
+  if (page === 'access') loadAccessPage();
+  if (page === 'users') { navigate('access'); return; }
+  if (page === 'roles') { navigate('access'); switchAccessTab('roles'); return; }
   if (page === 'rules') loadRules();
   if (page === 'risk-rules') loadRiskRules();
   if (page === 'ankety') loadAnketas();
   if (page === 'approvals') loadEditRequests();
   if (page === 'calculator') runLeaseCalc();
-  if (page === 'roles') loadRoles();
   if (page === 'employee-stats') loadEmployeeStats();
   if (page === 'new-anketa') {
     if (data && data.loadExisting && data.anketaId) {
@@ -539,7 +540,6 @@ function initApp() {
     document.getElementById('adminSection').style.display = 'none';
   }
   document.getElementById('usersNavItem').style.display = hasUserManage ? '' : 'none';
-  document.getElementById('rolesNavItem').style.display = hasUserManage ? '' : 'none';
   document.getElementById('rulesNavItem').style.display = hasRulesManage ? '' : 'none';
   document.getElementById('riskRulesNavItem').style.display = hasRulesManage ? '' : 'none';
   document.getElementById('empStatsNavItem').style.display = hasAnalyticsView ? '' : 'none';
@@ -2816,62 +2816,73 @@ async function loadDashboardStats() {
 function renderDashboard(stats) {
   const rejected = stats.rejected_underwriter + stats.rejected_client;
 
-  // Stat cards with icons
+  // Yandex-style stat cards with sparklines
   const cardsHtml = `
     <div class="stat-card" onclick="navigate('ankety')">
-      <div class="stat-icon stat-icon-purple">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
+      <div class="stat-card-header">
+        <span class="stat-card-title">Всего анкет</span>
+        <span class="stat-card-link">Отчёт &#9654;</span>
       </div>
-      <div class="stat-info">
-        <div class="stat-label">Всего анкет</div>
-        <div class="stat-value">${stats.total}</div>
-        <div class="stat-sub">За выбранный период</div>
-      </div>
-    </div>
-    <div class="stat-card" onclick="navigate('ankety')">
-      <div class="stat-icon stat-icon-green">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-          <polyline points="22 4 12 14.01 9 11.01"/>
-        </svg>
-      </div>
-      <div class="stat-info">
-        <div class="stat-label">Одобрено</div>
-        <div class="stat-value" style="color:var(--green)">${stats.approved}</div>
-        <div class="stat-sub">Решение: одобрено</div>
+      <div class="stat-card-body">
+        <div class="stat-card-left">
+          <div class="stat-value">${stats.total}</div>
+          <div class="stat-sub-items">
+            <div class="stat-sub-item">Сохранённые <span>${stats.saved}</span></div>
+            <div class="stat-sub-item">Черновики <span>${stats.draft || 0}</span></div>
+          </div>
+        </div>
+        <div class="stat-card-right"><canvas id="sparkTotal"></canvas></div>
       </div>
     </div>
     <div class="stat-card" onclick="navigate('ankety')">
-      <div class="stat-icon stat-icon-yellow">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <polyline points="12 6 12 12 16 14"/>
-        </svg>
+      <div class="stat-card-header">
+        <span class="stat-card-title">Одобрено</span>
+        <span class="stat-card-link">Отчёт &#9654;</span>
       </div>
-      <div class="stat-info">
-        <div class="stat-label">На рассмотрении</div>
-        <div class="stat-value" style="color:var(--yellow)">${stats.review + stats.saved}</div>
-        <div class="stat-sub">Сохранённые + на рассмотр.</div>
+      <div class="stat-card-body">
+        <div class="stat-card-left">
+          <div class="stat-value-row">
+            <div class="stat-value" style="color:var(--green)">${stats.approved}</div>
+            <span class="stat-pct-trend" id="approvedPctTrend"></span>
+          </div>
+          <div class="stat-sub">Решение: одобрено</div>
+        </div>
+        <div class="stat-card-right"><canvas id="sparkApproved"></canvas></div>
       </div>
     </div>
     <div class="stat-card" onclick="navigate('ankety')">
-      <div class="stat-icon stat-icon-red">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="10"/>
-          <line x1="15" y1="9" x2="9" y2="15"/>
-          <line x1="9" y1="9" x2="15" y2="15"/>
-        </svg>
+      <div class="stat-card-header">
+        <span class="stat-card-title">На рассмотрении</span>
+        <span class="stat-card-link">Отчёт &#9654;</span>
       </div>
-      <div class="stat-info">
-        <div class="stat-label">Отказано</div>
-        <div class="stat-value" style="color:var(--red)">${rejected}</div>
-        <div class="stat-sub">Андерр. ${stats.rejected_underwriter} / Клиент ${stats.rejected_client}</div>
+      <div class="stat-card-body">
+        <div class="stat-card-left">
+          <div class="stat-value" style="color:var(--yellow)">${stats.review + stats.saved}</div>
+          <div class="stat-sub-items">
+            <div class="stat-sub-item">Review <span>${stats.review}</span></div>
+            <div class="stat-sub-item">Saved <span>${stats.saved}</span></div>
+          </div>
+        </div>
+        <div class="stat-card-right"><canvas id="sparkReview"></canvas></div>
+      </div>
+    </div>
+    <div class="stat-card" onclick="navigate('ankety')">
+      <div class="stat-card-header">
+        <span class="stat-card-title">Отказано</span>
+        <span class="stat-card-link">Отчёт &#9654;</span>
+      </div>
+      <div class="stat-card-body">
+        <div class="stat-card-left">
+          <div class="stat-value-row">
+            <div class="stat-value" style="color:var(--red)">${rejected}</div>
+            <span class="stat-pct-trend" id="rejectedPctTrend"></span>
+          </div>
+          <div class="stat-sub-items">
+            <div class="stat-sub-item">Андеррайтер <span>${stats.rejected_underwriter}</span></div>
+            <div class="stat-sub-item">Клиент <span>${stats.rejected_client}</span></div>
+          </div>
+        </div>
+        <div class="stat-card-right"><canvas id="sparkRejected"></canvas></div>
       </div>
     </div>
   `;
@@ -4427,26 +4438,102 @@ function deltaHtml(val, invert) {
   return `<div class="stat-trend ${cls}">${arrow} ${Math.abs(val).toFixed(1)}</div>`;
 }
 
+function _pctTrendHtml(val, invert) {
+  if (val === 0 || val === null || val === undefined) return '';
+  const positive = invert ? val < 0 : val > 0;
+  const arrow = positive ? '\u2191' : '\u2193';
+  const cls = positive ? 'up' : 'down';
+  return `<span class="stat-pct-trend ${cls}">${positive ? '+' : ''}${val.toFixed(1)}%${arrow}</span>`;
+}
+
+function _renderSparkline(canvasId, dataPoints, color) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = canvas.parentElement.clientWidth || 100;
+  const h = canvas.parentElement.clientHeight || 50;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.scale(dpr, dpr);
+
+  const pts = dataPoints.length ? dataPoints : [0];
+  const max = Math.max(...pts, 1);
+  const min = Math.min(...pts, 0);
+  const range = max - min || 1;
+  const pad = 2;
+
+  // Draw filled area + line
+  ctx.beginPath();
+  pts.forEach((v, i) => {
+    const x = pad + (i / (pts.length - 1 || 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+
+  // Fill area under the line
+  const lastX = pad + ((pts.length - 1) / (pts.length - 1 || 1)) * (w - pad * 2);
+  ctx.lineTo(lastX, h);
+  ctx.lineTo(pad, h);
+  ctx.closePath();
+  ctx.fillStyle = color + '18';
+  ctx.fill();
+
+  // Stroke line
+  ctx.beginPath();
+  pts.forEach((v, i) => {
+    const x = pad + (i / (pts.length - 1 || 1)) * (w - pad * 2);
+    const y = pad + (1 - (v - min) / range) * (h - pad * 2);
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.stroke();
+}
+
 function renderAnalytics(data) {
-  // Analytics cards
+  // Analytics cards (Yandex-style with trend)
   const approvalDelta = data.approval_rate - data.prev_approval_rate;
   const dtiDelta = data.avg_dti - data.prev_avg_dti;
 
   document.getElementById('analyticsCards').innerHTML = `
-    <div class="stat-card">
-      <div class="stat-label">% одобрения</div>
-      <div class="stat-value" style="font-size:24px">${data.approval_rate.toFixed(1)}%</div>
+    <div class="stat-card" style="cursor:default">
+      <div class="stat-card-header">
+        <span class="stat-card-title">% одобрения</span>
+      </div>
+      <div class="stat-value-row">
+        <div class="stat-value" style="font-size:28px">${data.approval_rate.toFixed(1)}%</div>
+        ${_pctTrendHtml(approvalDelta, false)}
+      </div>
       ${deltaHtml(approvalDelta, false)}
     </div>
-    <div class="stat-card">
-      <div class="stat-label">Средний DTI</div>
-      <div class="stat-value" style="font-size:24px">${data.avg_dti.toFixed(1)}%</div>
+    <div class="stat-card" style="cursor:default">
+      <div class="stat-card-header">
+        <span class="stat-card-title">Средний DTI</span>
+      </div>
+      <div class="stat-value-row">
+        <div class="stat-value" style="font-size:28px">${data.avg_dti.toFixed(1)}%</div>
+        ${_pctTrendHtml(dtiDelta, true)}
+      </div>
       ${deltaHtml(dtiDelta, true)}
     </div>
   `;
 
-  // Trend chart
+  // Render sparklines on dashboard stat cards
   const trend = data.trend || [];
+  if (trend.length > 1) {
+    _renderSparkline('sparkTotal', trend.map(t => t.total), '#3B82F6');
+    _renderSparkline('sparkApproved', trend.map(t => t.approved), '#22C55E');
+    // Estimate review/rejected from totals (rough sparkline)
+    _renderSparkline('sparkReview', trend.map(t => Math.max(0, t.total - t.approved)), '#F59E0B');
+    _renderSparkline('sparkRejected', trend.map(t => Math.max(0, t.total - t.approved)), '#EF4444');
+  }
+
+  // Trend chart (reuses `trend` from above)
   const maxTotal = Math.max(...trend.map(t => t.total), 1);
   const barsHtml = trend.map(t => {
     const totalH = Math.round((t.total / maxTotal) * 120);
@@ -4905,60 +4992,284 @@ function printAnketa() {
 }
 
 
-// ---------- ROLES MANAGEMENT ----------
+// ---------- ACCESS MANAGEMENT (Yandex-style) ----------
 
 let rolesData = [];
+let _selectedRoleId = null;
+let _selectedSection = null;
+let _roleEditMode = false;
+let _currentAccessTab = 'users';
+
+const PERM_LABELS = {
+  anketa_create: 'Создание анкет',
+  anketa_edit: 'Редактирование анкет',
+  anketa_view_all: 'Просмотр всех анкет',
+  anketa_conclude: 'Заключение по анкетам',
+  anketa_delete: 'Удаление анкет',
+  user_manage: 'Управление пользователями',
+  analytics_view: 'Просмотр аналитики',
+  export_excel: 'Экспорт в Excel',
+  rules_manage: 'Управление правилами',
+};
+
+const PERM_KEYS = Object.keys(PERM_LABELS);
+
+const PERM_DESCRIPTIONS = {
+  anketa_create: 'Создание новых заявок на андеррайтинг',
+  anketa_edit: 'Редактирование существующих заявок',
+  anketa_view_all: 'Просмотр заявок всех сотрудников',
+  anketa_conclude: 'Вынесение финального решения по заявке',
+  anketa_delete: 'Удаление заявок из системы',
+  user_manage: 'Создание, редактирование и удаление пользователей',
+  analytics_view: 'Доступ к дашборду и расширенной аналитике',
+  export_excel: 'Выгрузка данных в формате Excel',
+  rules_manage: 'Настройка правил андеррайтинга и риск-категорий',
+};
+
+// Группировка пермишенов по разделам
+const PERM_SECTIONS = {
+  'Анкеты': {
+    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>',
+    perms: ['anketa_create', 'anketa_edit', 'anketa_view_all', 'anketa_conclude', 'anketa_delete']
+  },
+  'Администрирование': {
+    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
+    perms: ['user_manage', 'rules_manage']
+  },
+  'Аналитика и экспорт': {
+    icon: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>',
+    perms: ['analytics_view', 'export_excel']
+  }
+};
+
+function loadAccessPage() {
+  const user = getUser();
+  const _p = user && user.permissions;
+  if (!user || !(_p && _p.user_manage)) {
+    navigate('dashboard');
+    return;
+  }
+  updateAccessTopbarActions();
+  if (_currentAccessTab === 'users') {
+    loadUsers();
+  } else {
+    loadRoles();
+  }
+}
+
+function switchAccessTab(tab) {
+  _currentAccessTab = tab;
+  document.getElementById('accessTabUsers').classList.toggle('active', tab === 'users');
+  document.getElementById('accessTabRoles').classList.toggle('active', tab === 'roles');
+  document.getElementById('accessContentUsers').classList.toggle('active', tab === 'users');
+  document.getElementById('accessContentRoles').classList.toggle('active', tab === 'roles');
+  updateAccessTopbarActions();
+  if (tab === 'users') loadUsers();
+  else loadRoles();
+}
+
+function updateAccessTopbarActions() {
+  const el = document.getElementById('accessTopbarActions');
+  if (_currentAccessTab === 'users') {
+    el.innerHTML = `
+      <button class="btn btn-outline" onclick="openTelegramSettingsModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 2L9 14"/><path d="M21 2l-7 20-4-9-9-4z"/></svg>
+        Telegram
+      </button>
+      <button class="btn btn-outline" onclick="openExcelExportModal()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Скачать Excel
+      </button>
+      <button class="btn btn-primary" onclick="openCreateUserModal()">+ Новый пользователь</button>
+    `;
+  } else {
+    el.innerHTML = '';
+  }
+}
+
+// --- Roles 3-column ---
 
 async function loadRoles() {
-  showSkeleton('rolesTableBody', 'table-rows', 11);
-
+  const listEl = document.getElementById('rolesListCol');
+  listEl.innerHTML = '<div class="roles-list-empty">Загрузка...</div>';
   try {
     const res = await fetch('/api/v1/admin/roles', { headers: authHeaders() });
     if (res.status === 401) { logout(); return; }
     if (res.status === 403) { navigate('dashboard'); return; }
     if (!res.ok) throw new Error('Failed to load roles');
     rolesData = await res.json();
-    renderRolesTable();
+    renderRolesList();
+    // Auto-select first role or reselect current
+    if (rolesData.length) {
+      const targetId = _selectedRoleId && rolesData.find(r => r.id === _selectedRoleId) ? _selectedRoleId : rolesData[0].id;
+      selectRole(targetId);
+    } else {
+      _selectedRoleId = null;
+      renderRolesList();
+      document.getElementById('rolesSectionsCol').innerHTML = '<div class="roles-list-empty">Нет ролей</div>';
+      document.getElementById('rolesPermsCol').innerHTML = '';
+      document.getElementById('rolesColActions').style.display = 'none';
+    }
   } catch (err) {
     showToast('Ошибка загрузки должностей', 'error');
-    showErrorState('rolesTableBody', 'Ошибка загрузки', 'loadRoles()', true, 11);
+    listEl.innerHTML = '<div class="roles-list-empty">Ошибка загрузки</div>';
   }
 }
 
-const PERM_LABELS = {
-  anketa_create: 'Создание',
-  anketa_edit: 'Редакт.',
-  anketa_view_all: 'Просм. всех',
-  anketa_conclude: 'Заключ.',
-  anketa_delete: 'Удаление',
-  user_manage: 'Польз.',
-  analytics_view: 'Аналит.',
-  export_excel: 'Excel',
-  rules_manage: 'Правила',
-};
-
-const PERM_KEYS = Object.keys(PERM_LABELS);
-
-function renderRolesTable() {
-  const tbody = document.getElementById('rolesTableBody');
+function renderRolesList() {
+  const listEl = document.getElementById('rolesListCol');
   if (!rolesData.length) {
-    tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:var(--text-light)">Нет должностей</td></tr>';
+    listEl.innerHTML = '<div class="roles-list-empty">Нет ролей</div>';
     return;
   }
-  tbody.innerHTML = rolesData.map(r => {
-    const permCells = PERM_KEYS.map(k =>
-      `<td style="text-align:center">${r[k] ? '<span style="color:var(--green);font-weight:600">✓</span>' : '<span style="color:var(--text-light)">—</span>'}</td>`
-    ).join('');
-    const sysLabel = r.is_system ? ' <span style="font-size:10px;color:var(--text-light)">(системная)</span>' : '';
-    const actions = `<button class="btn btn-outline btn-sm" onclick="openEditRoleModal(${r.id})">Изменить</button>
-         <button class="btn btn-sm btn-danger" onclick="deleteRole(${r.id})">Удалить</button>`;
-    return `<tr><td><strong>${escapeHtml(r.name)}</strong>${sysLabel}</td>${permCells}<td><div style="display:flex;gap:6px">${actions}</div></td></tr>`;
+  listEl.innerHTML = rolesData.map(r => {
+    const active = r.id === _selectedRoleId ? ' active' : '';
+    const sysLabel = r.is_system ? '<span class="role-list-item-sys">(системная)</span>' : '';
+    return `<div class="role-list-item${active}" onclick="selectRole(${r.id})">
+      <span>${escapeHtml(r.name)}${sysLabel}</span>
+      <span class="role-arrow">&#9654;</span>
+    </div>`;
   }).join('');
+}
+
+function selectRole(roleId) {
+  _selectedRoleId = roleId;
+  _roleEditMode = false;
+  renderRolesList();
+  renderSections();
+  // Auto-select first section
+  const sections = Object.keys(PERM_SECTIONS);
+  if (sections.length) {
+    selectSection(sections[0]);
+  }
+  // Show actions
+  document.getElementById('rolesColActions').style.display = 'flex';
+  document.getElementById('roleEditToggleBtn').textContent = 'Редактировать';
+}
+
+function renderSections() {
+  const role = rolesData.find(r => r.id === _selectedRoleId);
+  if (!role) return;
+  const sectionsEl = document.getElementById('rolesSectionsCol');
+  sectionsEl.innerHTML = Object.entries(PERM_SECTIONS).map(([name, sec]) => {
+    const active = name === _selectedSection ? ' active' : '';
+    const grantedCount = sec.perms.filter(k => role[k]).length;
+    const totalCount = sec.perms.length;
+    const countLabel = `<span class="role-section-count">${grantedCount}/${totalCount}</span>`;
+    return `<div class="role-section-item${active}" onclick="selectSection('${name}')">
+      <span style="display:flex;align-items:center;gap:8px">${sec.icon} ${name}${countLabel}</span>
+      <span class="section-arrow">&#9654;</span>
+    </div>`;
+  }).join('');
+}
+
+function selectSection(sectionName) {
+  _selectedSection = sectionName;
+  renderSections();
+  renderPermissions();
+}
+
+function renderPermissions() {
+  const role = rolesData.find(r => r.id === _selectedRoleId);
+  const section = PERM_SECTIONS[_selectedSection];
+  if (!role || !section) return;
+
+  const permsEl = document.getElementById('rolesPermsCol');
+  const checkSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>';
+  const crossSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+
+  let html = '';
+
+  // Role name edit in edit mode
+  if (_roleEditMode) {
+    html += `<div class="role-name-edit-wrap">
+      <input type="text" id="inlineRoleName" value="${escapeHtml(role.name)}" placeholder="Название роли">
+    </div>`;
+  }
+
+  // Permission items
+  html += section.perms.map(k => {
+    const granted = role[k];
+    const editableClass = _roleEditMode ? ' editable' : '';
+    const onclick = _roleEditMode ? ` onclick="togglePermInline('${k}')"` : '';
+    return `<div class="perm-item">
+      <div class="perm-check ${granted ? 'granted' : 'denied'}${editableClass}"${onclick}>
+        ${granted ? checkSvg : crossSvg}
+      </div>
+      <div class="perm-item-label">
+        <div>${PERM_LABELS[k]}</div>
+        <div class="perm-item-desc">${PERM_DESCRIPTIONS[k] || ''}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Save/Cancel in edit mode
+  if (_roleEditMode) {
+    html += `<div class="roles-edit-actions">
+      <button class="btn btn-primary btn-sm" onclick="saveRoleInline()">Сохранить</button>
+      <button class="btn btn-outline btn-sm" onclick="cancelEditRoleInline()">Отмена</button>
+    </div>`;
+  }
+
+  permsEl.innerHTML = html;
+}
+
+function toggleEditRoleInline() {
+  _roleEditMode = !_roleEditMode;
+  document.getElementById('roleEditToggleBtn').textContent = _roleEditMode ? 'Отменить' : 'Редактировать';
+  renderPermissions();
+}
+
+function cancelEditRoleInline() {
+  _roleEditMode = false;
+  document.getElementById('roleEditToggleBtn').textContent = 'Редактировать';
+  // Reload to discard changes
+  loadRoles();
+}
+
+function togglePermInline(permKey) {
+  if (!_roleEditMode) return;
+  const role = rolesData.find(r => r.id === _selectedRoleId);
+  if (!role) return;
+  role[permKey] = !role[permKey];
+  renderSections();
+  renderPermissions();
+}
+
+async function saveRoleInline() {
+  const role = rolesData.find(r => r.id === _selectedRoleId);
+  if (!role) return;
+  const nameInput = document.getElementById('inlineRoleName');
+  const name = nameInput ? nameInput.value.trim() : role.name;
+  if (!name) { showToast('Введите название роли', 'error'); return; }
+  const body = { name };
+  PERM_KEYS.forEach(k => { body[k] = !!role[k]; });
+  try {
+    const res = await fetch('/api/v1/admin/roles/' + role.id, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Ошибка'); }
+    _roleEditMode = false;
+    document.getElementById('roleEditToggleBtn').textContent = 'Редактировать';
+    showToast('Роль обновлена');
+    loadRoles();
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function deleteSelectedRole() {
+  if (!_selectedRoleId) return;
+  const role = rolesData.find(r => r.id === _selectedRoleId);
+  if (!role) return;
+  if (!confirm(`Удалить роль "${role.name}"?`)) return;
+  try {
+    const res = await fetch('/api/v1/admin/roles/' + _selectedRoleId, { method: 'DELETE', headers: authHeaders() });
+    if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Ошибка'); }
+    _selectedRoleId = null;
+    showToast('Роль удалена');
+    loadRoles();
+  } catch (err) { showToast(err.message, 'error'); }
 }
 
 function openCreateRoleModal() {
   document.getElementById('newRoleName').value = '';
-  PERM_KEYS.forEach(k => { document.getElementById('newRolePerm_' + k).checked = false; });
   document.getElementById('createRoleError').classList.remove('show');
   document.getElementById('createRoleModal').classList.add('show');
 }
@@ -4970,40 +5281,14 @@ async function createRole() {
   const name = document.getElementById('newRoleName').value.trim();
   if (!name) { errEl.textContent = 'Введите название'; errEl.classList.add('show'); return; }
   const body = { name };
-  PERM_KEYS.forEach(k => { body[k] = document.getElementById('newRolePerm_' + k).checked; });
+  PERM_KEYS.forEach(k => { body[k] = false; });
   try {
     const res = await fetch('/api/v1/admin/roles', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) });
     if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Ошибка'); }
     closeCreateRoleModal();
-    showToast('Должность создана');
-    loadRoles();
-  } catch (err) { errEl.textContent = err.message; errEl.classList.add('show'); }
-}
-
-function openEditRoleModal(roleId) {
-  const role = rolesData.find(r => r.id === roleId);
-  if (!role) return;
-  document.getElementById('editRoleId').value = roleId;
-  document.getElementById('editRoleName').value = role.name;
-  PERM_KEYS.forEach(k => { document.getElementById('editRolePerm_' + k).checked = role[k]; });
-  document.getElementById('editRoleError').classList.remove('show');
-  document.getElementById('editRoleModal').classList.add('show');
-}
-function closeEditRoleModal() { closeModal('editRoleModal'); }
-
-async function saveRole() {
-  const errEl = document.getElementById('editRoleError');
-  errEl.classList.remove('show');
-  const roleId = document.getElementById('editRoleId').value;
-  const name = document.getElementById('editRoleName').value.trim();
-  if (!name) { errEl.textContent = 'Введите название'; errEl.classList.add('show'); return; }
-  const body = { name };
-  PERM_KEYS.forEach(k => { body[k] = document.getElementById('editRolePerm_' + k).checked; });
-  try {
-    const res = await fetch('/api/v1/admin/roles/' + roleId, { method: 'PATCH', headers: authHeaders(), body: JSON.stringify(body) });
-    if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Ошибка'); }
-    closeEditRoleModal();
-    showToast('Должность обновлена');
+    const newRole = await res.json();
+    showToast('Роль создана — настройте права доступа');
+    _selectedRoleId = newRole.id;
     loadRoles();
   } catch (err) { errEl.textContent = err.message; errEl.classList.add('show'); }
 }
