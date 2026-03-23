@@ -1,16 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git *)",
-      "Bash(pytest *)",
-      "Bash(pip *)",
-      "Bash(python *)",
-      "Bash(mkdir *)",
-      "Bash(source *)",
-      "Bash(ls *)",
-      "Bash(cp *)",
-      "Bash(mv *)",
-      "Bash(uvicorn *)"
+      "Bash(*)",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "WebSearch",
+      "WebFetch"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push * main)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)",
+      "Bash(git checkout main *)"
     ]
   }
 }
